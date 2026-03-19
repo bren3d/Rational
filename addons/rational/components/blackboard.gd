@@ -2,61 +2,53 @@
 @icon("../icons/Blackboard.svg")
 class_name Blackboard extends Resource
 
+const DEFAULT: String = "default"
+const SHARED: String = "shared"
 
-## Use [method has], [method SET], and [method GET] to access.
-@export var data: Dictionary = {}: set = set_board_data
+## Use [method set_value], and [method get_value] to access.
+@export var board_data: Dictionary = {}: set = set_board_data
 
+## [Blackboard] for use between multiple blackboards.
+@export var global_data: Blackboard: set = set_global_data
 
-func GET(key: String, default: Variant) -> Variant:
-	return data.get(key, default)
-
-
-func SET(key: String, val: Variant) -> void:
-	data[key] = val
-
-
-func has(key: String) -> bool:
-	return data.has(key)
+var _data: Dictionary
 
 
-func erase(key: String) -> bool:
-	if not has(key): return false
-	data.erase(key)
-	return true
-	
+func get_value(key: String, default: Variant = null, section: String = DEFAULT) -> Variant:
+	return _data.get(section, {}).get(key, default)
 
-func keys() -> Array[String]:
-	return Array(data.keys().duplicate(), TYPE_STRING, "", null)
-func values() -> Array:
-	return data.values()
+func set_value(key: String, value: Variant, section: String = DEFAULT) -> void:
+	_data.get_or_add(section, {})[key] = value
+
+
+func has(key: String, section: String = DEFAULT) -> bool:
+	return _data.get(section, {}).has(key)
+
+
+func erase(key: String, section: String = DEFAULT) -> bool:
+	if has(key, section):
+		return _data.get(section, {}).erase(key)
+	return false
+
+
+func get_global(key: String, default: Variant = null) -> Variant:
+	return get_value(key, default, SHARED)
+
+func set_global(key: String, value: Variant = null) -> void:
+	set_value(key, value, SHARED)
+
+
+func get_local(key: String, default: Variant = null) -> Variant:
+	return get_value(key, default)
+
+func set_local(key: String, value: Variant = null) -> void:
+	set_value(key, value)
 
 
 func set_board_data(val: Dictionary) -> void:
-	data = val
+	board_data = val
+	_data[DEFAULT] = board_data
 
-
-# # To be removed
-
-func _get_property_list() -> Array[Dictionary]:
-	var props: Array[Dictionary] = []
-	for key: String in keys():
-		props.append \
-		(
-			{
-				name = key,
-				type = typeof(data[key]),
-				usage = PROPERTY_USAGE_EDITOR,
-			}
-		)
-
-	return props
-
-
-func _set(property: StringName, value: Variant) -> bool:
-	match property:
-		"resource_path", "resource_name", "resource_local_to_scene":
-			pass
-		_:
-			data[property] = value
-			
-	return false
+func set_global_data(val: Blackboard) -> void:
+	global_data = val
+	_data[SHARED] = global_data.board_data if board_data else {}

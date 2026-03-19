@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3 uid="uid://cqlh6e0fg4ujq"]
+[gd_scene format=3 uid="uid://cqlh6e0fg4ujq"]
 
 [ext_resource type="Texture2D" uid="uid://di2wc3o4q6mm" path="res://addons/rational/icons/StatusError.svg" id="1_hfd0a"]
 [ext_resource type="Texture2D" uid="uid://c8jqnvh2qxehl" path="res://addons/rational/icons/progress/Progress1.svg" id="2_awrda"]
@@ -11,13 +11,18 @@
 [ext_resource type="Texture2D" uid="uid://oye25kn7ai44" path="res://addons/rational/icons/progress/Progress8.svg" id="9_1ligp"]
 [ext_resource type="Texture2D" uid="uid://gq8ctm18yiq8" path="res://addons/rational/icons/StatusSuccess.svg" id="10_g5bju"]
 [ext_resource type="Texture2D" uid="uid://cc51relmrs63n" path="res://addons/rational/icons/StatusWarning.svg" id="11_645ia"]
-[ext_resource type="Script" path="res://addons/rational/components/RationalTree.gd" id="12_m8cgi"]
-[ext_resource type="Script" path="res://addons/rational/components/blackboard.gd" id="13_6m14f"]
+[ext_resource type="Script" uid="uid://davp5u2xw823n" path="res://addons/rational/components/rational_tree.gd" id="12_m8cgi"]
+[ext_resource type="Script" uid="uid://6ug5fa63l34w" path="res://addons/rational/components/blackboard.gd" id="13_6m14f"]
 [ext_resource type="Texture2D" uid="uid://c6xt30y0jeyie" path="res://addons/rational/icons/Debug.svg" id="14_4x1kh"]
-[ext_resource type="Script" path="res://addons/rational/components/rational_component.gd" id="14_jhjid"]
-[ext_resource type="Script" path="res://addons/rational/components/decorators/decorator.gd" id="16_cdg1a"]
-[ext_resource type="Script" path="res://addons/rational/components/sequence.gd" id="18_jckpc"]
+[ext_resource type="Script" uid="uid://bf5yfufeku4t4" path="res://addons/rational/components/rational_component.gd" id="14_s7iw1"]
+[ext_resource type="Script" uid="uid://dslcu3blcrgyx" path="res://addons/rational/components/decorators/succeeder.gd" id="15_wh884"]
+[ext_resource type="Script" uid="uid://b084a27qrwlfn" path="res://addons/rational/components/sequence.gd" id="16_f0c8p"]
+[ext_resource type="Script" uid="uid://lp2l3w30rxd3" path="res://addons/rational/components/decorators/failer.gd" id="16_wh884"]
+[ext_resource type="Script" uid="uid://bktdpfgt2g20l" path="res://addons/rational/components/condition.gd" id="17_8sece"]
+[ext_resource type="Script" uid="uid://dq5d3qx2jtck3" path="res://addons/rational/components/decorators/inverter.gd" id="17_f0c8p"]
 [ext_resource type="Texture2D" uid="uid://ya105wb6fqmt" path="res://addons/rational/icons/EditorHandle.svg" id="18_t2hwn"]
+[ext_resource type="Script" uid="uid://cugqq0rl38kp7" path="res://addons/rational/components/fallback.gd" id="20_leic3"]
+[ext_resource type="Script" uid="uid://bify0ecwxtt67" path="res://addons/rational/components/action.gd" id="20_mg37k"]
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_0cnec"]
 animations = [{
@@ -75,39 +80,133 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="Resource" id="Resource_vwwh4"]
+[sub_resource type="Resource" id="Resource_1jrjd"]
 script = ExtResource("13_6m14f")
-data = {}
 
-[sub_resource type="Resource" id="Resource_ly6li"]
-resource_name = "RationalTreeComposite"
-script = ExtResource("18_jckpc")
-children = Array[ExtResource("14_jhjid")]([])
-parent = null
+[sub_resource type="Resource" id="Resource_wh884"]
+resource_local_to_scene = true
+resource_name = "Succeeder"
+script = ExtResource("15_wh884")
+metadata/_custom_type_script = "uid://dslcu3blcrgyx"
 
-[sub_resource type="Resource" id="Resource_q2ltb"]
-script = ExtResource("16_cdg1a")
-children = Array[ExtResource("14_jhjid")]([SubResource("Resource_ly6li")])
+[sub_resource type="Resource" id="Resource_f0c8p"]
+resource_local_to_scene = true
+resource_name = "Failer"
+script = ExtResource("16_wh884")
+metadata/_custom_type_script = "uid://lp2l3w30rxd3"
+
+[sub_resource type="Resource" id="Resource_q1v5c"]
+resource_local_to_scene = true
+resource_name = "ConditionLeaf"
+script = ExtResource("17_8sece")
+condition = "board.has(\"something\")"
+metadata/_custom_type_script = "uid://bktdpfgt2g20l"
+
+[sub_resource type="Resource" id="Resource_mg37k"]
+resource_local_to_scene = true
+resource_name = "Inverter"
+script = ExtResource("17_f0c8p")
+child = SubResource("Resource_q1v5c")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_q1v5c")])
+metadata/_custom_type_script = "uid://dq5d3qx2jtck3"
+
+[sub_resource type="Resource" id="Resource_s7iw1"]
+resource_local_to_scene = true
+resource_name = "blah"
+script = ExtResource("16_f0c8p")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_wh884"), SubResource("Resource_f0c8p"), SubResource("Resource_mg37k")])
+metadata/_custom_type_script = "uid://b084a27qrwlfn"
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_b1mpv"]
 radius = 200.0
 
-[sub_resource type="Resource" id="Resource_1sinj"]
+[sub_resource type="Resource" id="Resource_7hfrv"]
 script = ExtResource("13_6m14f")
-data = {}
+metadata/_custom_type_script = "uid://6ug5fa63l34w"
 
-[sub_resource type="Resource" id="Resource_8bm6a"]
-resource_name = "RationalTree2"
-script = ExtResource("18_jckpc")
-children = Array[ExtResource("14_jhjid")]([])
-parent = null
-metadata/RationalTree = Object(Node,"_import_path":NodePath(""),"unique_name_in_owner":true,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"physics_interpolation_mode":0,"auto_translate_mode":0,"editor_description":"","script":ExtResource("12_m8cgi"),"actor":Object(AnimatedSprite2D,"_import_path":NodePath(""),"unique_name_in_owner":false,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"physics_interpolation_mode":0,"auto_translate_mode":0,"editor_description":"","visible":true,"modulate":Color(1, 1, 1, 1),"self_modulate":Color(1, 1, 1, 1),"show_behind_parent":false,"top_level":false,"clip_children":0,"light_mask":1,"visibility_layer":1,"z_index":0,"z_as_relative":true,"y_sort_enabled":false,"texture_filter":0,"texture_repeat":0,"material":null,"use_parent_material":false,"position":Vector2(0, 0),"rotation":0.0,"scale":Vector2(1, 1),"skew":0.0,"sprite_frames":SubResource("SpriteFrames_0cnec"),"animation":&"success","autoplay":"success","frame":0,"frame_progress":0.563199,"speed_scale":1.0,"centered":true,"offset":Vector2(0, 0),"flip_h":false,"flip_v":false,"script":null)
-,"blackboard":SubResource("Resource_1sinj"),"master_root":null,"disabled":true,"action_debug_label":false,"root":SubResource("Resource_8bm6a"))
+[sub_resource type="Resource" id="Resource_k0gel"]
+resource_local_to_scene = true
+resource_name = "Failer"
+script = ExtResource("16_wh884")
+metadata/_custom_type_script = "uid://lp2l3w30rxd3"
 
+[sub_resource type="Resource" id="Resource_18x2g"]
+resource_local_to_scene = true
+resource_name = "Fallback"
+script = ExtResource("20_leic3")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_k0gel")])
+metadata/_custom_type_script = "uid://cugqq0rl38kp7"
 
-[sub_resource type="Resource" id="Resource_td0b1"]
-script = ExtResource("16_cdg1a")
-children = Array[ExtResource("14_jhjid")]([SubResource("Resource_8bm6a")])
+[sub_resource type="Resource" id="Resource_4t32f"]
+resource_local_to_scene = true
+resource_name = "Inverter"
+script = ExtResource("17_f0c8p")
+child = SubResource("Resource_18x2g")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_18x2g")])
+metadata/_custom_type_script = "uid://dq5d3qx2jtck3"
+
+[sub_resource type="Resource" id="Resource_c3hlo"]
+resource_local_to_scene = true
+resource_name = "Succeeder"
+script = ExtResource("15_wh884")
+metadata/_custom_type_script = "uid://dslcu3blcrgyx"
+
+[sub_resource type="Resource" id="Resource_leic3"]
+resource_local_to_scene = true
+resource_name = "Failer"
+script = ExtResource("16_wh884")
+metadata/_custom_type_script = "uid://lp2l3w30rxd3"
+
+[sub_resource type="Resource" id="Resource_xa1ah"]
+resource_local_to_scene = true
+resource_name = "Sequence"
+script = ExtResource("16_f0c8p")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_c3hlo"), SubResource("Resource_leic3")])
+metadata/_custom_type_script = "uid://b084a27qrwlfn"
+
+[sub_resource type="Resource" id="Resource_uq5so"]
+resource_local_to_scene = true
+resource_name = "ActionLeaf"
+script = ExtResource("20_mg37k")
+metadata/_custom_type_script = "uid://bify0ecwxtt67"
+
+[sub_resource type="Resource" id="Resource_5y2e1"]
+resource_local_to_scene = true
+resource_name = "ConditionLeaf"
+script = ExtResource("17_8sece")
+metadata/_custom_type_script = "uid://bktdpfgt2g20l"
+
+[sub_resource type="Resource" id="Resource_i7w4y"]
+resource_local_to_scene = true
+resource_name = "Fallback"
+script = ExtResource("20_leic3")
+metadata/_custom_type_script = "uid://cugqq0rl38kp7"
+
+[sub_resource type="Resource" id="Resource_xvw0u"]
+resource_local_to_scene = true
+resource_name = "Fallback1"
+script = ExtResource("20_leic3")
+metadata/_custom_type_script = "uid://cugqq0rl38kp7"
+
+[sub_resource type="Resource" id="Resource_u7hrl"]
+resource_local_to_scene = true
+resource_name = "Fallback2"
+script = ExtResource("20_leic3")
+metadata/_custom_type_script = "uid://cugqq0rl38kp7"
+
+[sub_resource type="Resource" id="Resource_phjxm"]
+resource_local_to_scene = true
+resource_name = "Fallback"
+script = ExtResource("20_leic3")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_uq5so"), SubResource("Resource_5y2e1"), SubResource("Resource_i7w4y"), SubResource("Resource_xvw0u"), SubResource("Resource_u7hrl")])
+metadata/_custom_type_script = "uid://cugqq0rl38kp7"
+
+[sub_resource type="Resource" id="Resource_k2f85"]
+resource_local_to_scene = true
+resource_name = "dumb"
+script = ExtResource("20_leic3")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_4t32f"), SubResource("Resource_xa1ah"), SubResource("Resource_phjxm")])
+metadata/_custom_type_script = "uid://cugqq0rl38kp7"
 
 [sub_resource type="GDScript" id="GDScript_vfo5c"]
 script/source = "@tool
@@ -132,54 +231,50 @@ func _physics_process(delta: float) -> void:
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_8e8r4"]
 size = Vector2(50, 50)
 
-[node name="TestSceneCharacter" type="Node2D"]
+[node name="TestSceneCharacter" type="Node2D" unique_id=1309542413]
 
-[node name="Actor" type="AnimatedSprite2D" parent="."]
+[node name="Actor" type="AnimatedSprite2D" parent="." unique_id=1321677508]
 position = Vector2(924, 424)
 sprite_frames = SubResource("SpriteFrames_0cnec")
 animation = &"success"
 autoplay = "success"
 frame_progress = 0.563199
 
-[node name="RationalTree" type="Node" parent="Actor"]
+[node name="RationalTree" type="Node" parent="Actor" unique_id=1609543142 node_paths=PackedStringArray("actor")]
 script = ExtResource("12_m8cgi")
-actor = Object(AnimatedSprite2D,"_import_path":NodePath(""),"unique_name_in_owner":false,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"physics_interpolation_mode":0,"auto_translate_mode":0,"editor_description":"","visible":true,"modulate":Color(1, 1, 1, 1),"self_modulate":Color(1, 1, 1, 1),"show_behind_parent":false,"top_level":false,"clip_children":0,"light_mask":1,"visibility_layer":1,"z_index":0,"z_as_relative":true,"y_sort_enabled":false,"texture_filter":0,"texture_repeat":0,"material":null,"use_parent_material":false,"position":Vector2(924, 424),"rotation":0.0,"scale":Vector2(1, 1),"skew":0.0,"sprite_frames":SubResource("SpriteFrames_0cnec"),"animation":&"success","autoplay":"success","frame":0,"frame_progress":0.563199,"speed_scale":1.0,"centered":true,"offset":Vector2(0, 0),"flip_h":false,"flip_v":false,"script":null)
+actor = NodePath("..")
+blackboard = SubResource("Resource_1jrjd")
+root = SubResource("Resource_s7iw1")
 
-blackboard = SubResource("Resource_vwwh4")
-master_root = SubResource("Resource_q2ltb")
-root = SubResource("Resource_ly6li")
+[node name="Area2D" type="Area2D" parent="Actor" unique_id=1482673747]
 
-[node name="Area2D" type="Area2D" parent="Actor"]
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Actor/Area2D"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Actor/Area2D" unique_id=2065315671]
 shape = SubResource("CircleShape2D_b1mpv")
 
-[node name="Actor2" type="AnimatedSprite2D" parent="."]
+[node name="Actor2" type="AnimatedSprite2D" parent="." unique_id=1733059671]
 sprite_frames = SubResource("SpriteFrames_0cnec")
 animation = &"success"
 autoplay = "success"
 frame_progress = 0.563199
 
-[node name="RationalTree2" type="Node" parent="Actor2"]
+[node name="RationalTree2" type="Node" parent="Actor2" unique_id=1425211417 node_paths=PackedStringArray("actor")]
 unique_name_in_owner = true
 script = ExtResource("12_m8cgi")
-actor = Object(AnimatedSprite2D,"_import_path":NodePath(""),"unique_name_in_owner":false,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"physics_interpolation_mode":0,"auto_translate_mode":0,"editor_description":"","visible":true,"modulate":Color(1, 1, 1, 1),"self_modulate":Color(1, 1, 1, 1),"show_behind_parent":false,"top_level":false,"clip_children":0,"light_mask":1,"visibility_layer":1,"z_index":0,"z_as_relative":true,"y_sort_enabled":false,"texture_filter":0,"texture_repeat":0,"material":null,"use_parent_material":false,"position":Vector2(0, 0),"rotation":0.0,"scale":Vector2(1, 1),"skew":0.0,"sprite_frames":SubResource("SpriteFrames_0cnec"),"animation":&"success","autoplay":"success","frame":0,"frame_progress":0.563199,"speed_scale":1.0,"centered":true,"offset":Vector2(0, 0),"flip_h":false,"flip_v":false,"script":null)
+actor = NodePath("..")
+blackboard = SubResource("Resource_7hfrv")
+root = SubResource("Resource_k2f85")
 
-blackboard = SubResource("Resource_1sinj")
-master_root = SubResource("Resource_td0b1")
-root = SubResource("Resource_8bm6a")
+[node name="Area2D" type="Area2D" parent="Actor2" unique_id=1026846961]
 
-[node name="Area2D" type="Area2D" parent="Actor2"]
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Actor2/Area2D"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Actor2/Area2D" unique_id=228203990]
 shape = SubResource("CircleShape2D_b1mpv")
 
-[node name="Point" type="Marker2D" parent="."]
+[node name="Point" type="Marker2D" parent="." unique_id=1662812659]
 unique_name_in_owner = true
 position = Vector2(128, 512)
 gizmo_extents = 30.0
 
-[node name="ColorRect" type="ColorRect" parent="Point"]
+[node name="ColorRect" type="ColorRect" parent="Point" unique_id=894477569]
 offset_left = -8.0
 offset_top = -8.0
 offset_right = 8.0
@@ -187,29 +282,31 @@ offset_bottom = 8.0
 color = Color(0.501961, 0.447059, 1, 1)
 metadata/_edit_use_anchors_ = true
 
-[node name="Player" type="CharacterBody2D" parent="."]
+[node name="Player" type="CharacterBody2D" parent="." unique_id=789239619]
 position = Vector2(222, 107)
 motion_mode = 1
 floor_stop_on_slope = false
 floor_constant_speed = true
 script = SubResource("GDScript_vfo5c")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=804735261]
 shape = SubResource("RectangleShape2D_8e8r4")
 
-[node name="Sprite2D" type="Sprite2D" parent="Player"]
+[node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=509815302]
 scale = Vector2(2, 2)
 texture = ExtResource("14_4x1kh")
 
-[node name="PopupMenu" type="PopupMenu" parent="."]
+[node name="PopupMenu" type="PopupMenu" parent="." unique_id=936776542]
 unique_name_in_owner = true
 auto_translate_mode = 1
+oversampling_override = 1.0
 size = Vector2i(122, 116)
 visible = true
 unfocusable = true
 item_count = 4
 item_0/text = "Option 1"
 item_0/icon = ExtResource("18_t2hwn")
+item_0/id = 0
 item_1/text = "Option 2"
 item_1/icon = ExtResource("18_t2hwn")
 item_1/id = 1

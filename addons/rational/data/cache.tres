@@ -1,8 +1,0 @@
-[gd_resource type="Resource" load_steps=2 format=3 uid="uid://mwsd4lewpoi4"]
-
-[ext_resource type="Script" path="res://addons/rational/data/cache.gd" id="1_l8sty"]
-
-[resource]
-resource_name = "RationalCache"
-script = ExtResource("1_l8sty")
-file_paths = PackedStringArray()

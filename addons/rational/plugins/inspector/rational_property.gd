@@ -56,7 +56,7 @@ func _set_create_options(menu_node: Object) -> void:
 	for base_class: String in ["Composite", "Leaf", "Decorator"]:
 		var sub: Dictionary = {
 			base_class = base_class,
-			icon = Util.icon_by_string(base_class),
+			#icon = Util.class_get_icon(base_class),
 			subitems = [], }
 		
 	# for i: int in menu.item_count:

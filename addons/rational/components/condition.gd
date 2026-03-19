@@ -1,3 +1,5 @@
+## [Leaf] that either return SUCCESS or FAILURE depending on
+## a single simple condition. They should never return `RUNNING`.
 @tool
 @icon("../icons/Conditional.svg")
 class_name ConditionLeaf extends Leaf
@@ -5,15 +7,28 @@ class_name ConditionLeaf extends Leaf
 ## Expression that will return [code]SUCCESS[/code] if true
 ## and [code]FAILURE[/code] if false. Executes expression using [member RationalTree.actor]
 ## and a reference to the blackboard as variable: [code]board[/code].
-@export_multiline var condition: String: set = set_condition
+@export_custom(PROPERTY_HINT_EXPRESSION, "") 
+var condition: String: set = set_condition
 
 ## Expression that is executed on [method tick] call. Defaults to 
 ## [code]false[/code] if parse fails.
 var expression: Expression
 
+var expression_valid: bool = false
+
+func _no_tick(delta: float, board: Blackboard, actor: Node) -> int:
+	return FAILURE
 
 func _tick(delta: float, board: Blackboard, actor: Node) -> int:
-	return SUCCESS if expression.execute([board], actor, false) else FAILURE
+	if not expression_valid:
+		return FAILURE
+		
+	var result: Variant = expression.execute([board], actor, true)
+	
+	if expression.has_execute_failed():
+		return FAILURE
+	
+	return SUCCESS if result else FAILURE
 
 
 func set_condition(val: String) -> void:
@@ -29,7 +44,9 @@ func parse_expression(source: String) -> Expression:
 	if not Engine.is_editor_hint() and error != OK:
 		push_error("<Condition> Couldn't parse expression with source: `%s` Error text: `%s`" % [source, result.get_error_text()])
 		result.parse("false", PackedStringArray(["board"]))
-
+	
+	expression_valid = error != OK
+	
 	return result
 
 

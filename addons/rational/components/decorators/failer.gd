@@ -1,10 +1,14 @@
 @icon("../../icons/StatusError.svg")
 @tool
 class_name Failer extends Decorator
+## [Decorator] that will always return [member FAILURE]. Inverse of [Succeeder].
 
-func modify_response(response: int) -> int:
+
+func _no_tick(delta: float, board: Blackboard, actor: Node) -> int:
 	return FAILURE
 
+func _tick(delta: float, board: Blackboard, actor: Node) -> int:
+	return FAILURE
 
 func get_class_name() -> Array[StringName]:
 	var names: Array[StringName] = super()

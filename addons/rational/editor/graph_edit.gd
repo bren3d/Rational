@@ -10,15 +10,15 @@ const PROGRESS_SHIFT: int = 50
 const INACTIVE_COLOR: Color = Color("#898989aa")
 const ACTIVE_COLOR: Color = Color("#ffcc00c8")
 const SUCCESS_COLOR: Color = Color("#009944c8")
-
+const FAILURE_COLOR: Color = Color("#82010b")
 
 var updating_graph: bool = false
 var arraging_nodes: bool = false
-var beehave_tree: Dictionary:
+var rational_tree: Dictionary:
 	set(value):
-		if beehave_tree == value:
+		if rational_tree == value:
 			return
-		beehave_tree = value
+		rational_tree = value
 		active_nodes.clear()
 		_update_graph()
 
@@ -32,25 +32,20 @@ var horizontal_layout: bool = false:
 		_update_layout_button()
 		_update_graph()
 
-
 var style: RationalEditorStyle
 var active_nodes: Array[String]
 var progress: int = 0
 var layout_button: Button
-
 
 func _ready() -> void:
 	const NAME := &"Rational"
 	if Engine.has_singleton(NAME):
 		style = Engine.get_singleton(NAME).frames
 	else:
-		printerr("Error %s Could not find singleton under name '%s'" % [get_script().resource_path, NAME])
+		printerr("Error '%s' Could not find singleton under name '%s'" % [get_script().resource_path, NAME])
+	
 	custom_minimum_size = Vector2(100, 300)
-
-	if "show_arrange_button" in self:
-		set("show_arrange_button",true)
-	else:
-		set("arrange_nodes_button_hidden",true)
+	show_arrange_button = true
 	minimap_enabled = false
 	layout_button = Button.new()
 	layout_button.flat = true
@@ -72,10 +67,10 @@ func _update_graph() -> void:
 		remove_child(child)
 		child.queue_free()
 
-	if not beehave_tree.is_empty():
-		_add_nodes(beehave_tree)
-		_connect_nodes(beehave_tree)
-		_arrange_nodes.call_deferred(beehave_tree)
+	if not rational_tree.is_empty():
+		_add_nodes(rational_tree)
+		_connect_nodes(rational_tree)
+		_arrange_nodes.call_deferred(rational_tree)
 
 	updating_graph = false
 
@@ -144,7 +139,7 @@ func _get_icon(type: StringName) -> Texture2D:
 
 
 func get_menu_container() -> Control:
-	return call("get_menu_hbox")
+	return get_menu_hbox()
 
 
 func get_status(status: int) -> String:
@@ -195,7 +190,7 @@ func process_end(instance_id: int) -> void:
 
 
 func _is_same_tree(instance_id: int) -> bool:
-	return str(instance_id) == beehave_tree.get("id", "")
+	return str(instance_id) == rational_tree.get("id", "")
 
 
 func _get_child_nodes() -> Array[Node]:
@@ -203,13 +198,16 @@ func _get_child_nodes() -> Array[Node]:
 
 
 func _get_connection_line(from_position: Vector2, to_position: Vector2) -> PackedVector2Array:
+	# FIXME - Empty array crashes.
+	const VECS: PackedVector2Array = [Vector2(-9999999, -9999999), Vector2(-9999999, -9999999)]
+	return VECS
+
+
+func _get_elbow_connection_line(from_position: Vector2, to_position: Vector2) -> PackedVector2Array:
 	var points: PackedVector2Array
-
-	from_position = from_position.round()
-	to_position = to_position.round()
-
+	
 	points.push_back(from_position)
-
+	
 	var mid_position := ((to_position + from_position) / 2).round()
 	if horizontal_layout:
 		points.push_back(Vector2(mid_position.x, from_position.y))
@@ -217,9 +215,9 @@ func _get_connection_line(from_position: Vector2, to_position: Vector2) -> Packe
 	else:
 		points.push_back(Vector2(from_position.x, mid_position.y))
 		points.push_back(Vector2(to_position.x, mid_position.y))
-
+	
 	points.push_back(to_position)
-
+	
 	return points
 
 
@@ -235,58 +233,81 @@ func _draw() -> void:
 	if active_nodes.is_empty():
 		return
 
-	var circle_size: float = max(3, 6 * zoom)
+	var circle_size: float = max(4, 8 * zoom)
 	var progress_shift: float = PROGRESS_SHIFT * zoom
 
 	var connections := get_connection_list()
-	for c in connections:
-		var from_node: StringName
-		var to_node: StringName
-
-		# Godot 4.0+
-		if c.has("from"):
-			from_node = c.from
-			to_node = c.to
-		# Godot 4.2+
-		else:
-			from_node = c.from_node
-			to_node = c.to_node
-
+	for c: Dictionary in connections:
+		var from_node: StringName = c.from_node
+		var to_node: StringName = c.to_node
+		
+		
 		if not from_node in active_nodes or not c.to_node in active_nodes:
 			continue
-
-		var from := get_node(String(from_node))
-		var to := get_node(String(to_node))
-
+		
+		var from: RationalGraphNode = get_node(String(from_node))
+		var to: RationalGraphNode = get_node(String(to_node))
+		
 		if from.get_meta("status", -1) < 0 or to.get_meta("status", -1) < 0:
 			return
-
+		
 		var output_port_position: Vector2
 		var input_port_position: Vector2
-
-		output_port_position = from.position + from.call("get_output_port_position", c.from_port)
-		input_port_position = to.position + to.call("get_input_port_position", c.to_port)
-
-		var line := _get_connection_line(output_port_position, input_port_position)
-
+		
+		output_port_position = from.position + from.get_custom_output_port_position(horizontal_layout) * zoom #from.call("get_output_port_position", c.from_port)
+		input_port_position = to.position + to.get_custom_input_port_position(horizontal_layout) * zoom
+		
+		var line := _get_elbow_connection_line(output_port_position, input_port_position)
+		
+		# Get colors based on node states
+		var from_color: Color
+		var to_color: Color
+		
+		match from.get_meta("status", -1):
+			RationalComponent.SUCCESS: from_color = SUCCESS_COLOR
+			RationalComponent.FAILURE: from_color = FAILURE_COLOR
+			RationalComponent.RUNNING: from_color = ACTIVE_COLOR
+			_: from_color = INACTIVE_COLOR
+			
+		match to.get_meta("status", -1):
+			RationalComponent.SUCCESS: to_color = SUCCESS_COLOR
+			RationalComponent.FAILURE: to_color = FAILURE_COLOR
+			RationalComponent.RUNNING: to_color = ACTIVE_COLOR
+			_: to_color = INACTIVE_COLOR
+		
+		
+		# Draw the line with gradient colors
+		var line_color := from_color.lerp(to_color, 0.5)
+		line_color.a = 0.6
+		draw_polyline(line, line_color, 7.0 * zoom, true)
+		
+		# Draw a second line with a different alpha for smoother transition
+		var transition_color := from_color.lerp(to_color, 0.3)
+		transition_color.a = 0.3
+		draw_polyline(line, transition_color, 9.0, true)
 		var curve = Curve2D.new()
 		for l in line:
 			curve.add_point(l)
+		
+		# Only draw dots for active nodes
+		if not active_nodes.is_empty() and from_node in active_nodes and to_node in active_nodes:
+			if from.get_meta("status", -1) < 0 or to.get_meta("status", -1) < 0:
+				continue
+			
+			var max_steps := int(curve.get_baked_length())
+			var current_shift := progress % max_steps
+			var p := curve.sample_baked(current_shift)
+			draw_circle(p, circle_size, ACTIVE_COLOR)
 
-		var max_steps := int(curve.get_baked_length())
-		var current_shift := progress % max_steps
-		var p := curve.sample_baked(current_shift)
-		draw_circle(p, circle_size, ACTIVE_COLOR)
+			var shift := current_shift - progress_shift
+			while shift >= 0:
+				draw_circle(curve.sample_baked(shift), circle_size, ACTIVE_COLOR)
+				shift -= progress_shift
 
-		var shift := current_shift - progress_shift
-		while shift >= 0:
-			draw_circle(curve.sample_baked(shift), circle_size, ACTIVE_COLOR)
-			shift -= progress_shift
-
-		shift = current_shift + progress_shift
-		while shift <= curve.get_baked_length():
-			draw_circle(curve.sample_baked(shift), circle_size, ACTIVE_COLOR)
-			shift += progress_shift
+			shift = current_shift + progress_shift
+			while shift <= curve.get_baked_length():
+				draw_circle(curve.sample_baked(shift), circle_size, ACTIVE_COLOR)
+				shift += progress_shift
 
 
 func _update_layout_button() -> void:

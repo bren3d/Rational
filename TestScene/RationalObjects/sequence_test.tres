@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="Sequence" format=3 uid="uid://bg6qsy0hcpt5m"]
+
+[ext_resource type="Script" uid="uid://bf5yfufeku4t4" path="res://addons/rational/components/rational_component.gd" id="1_j0yi3"]
+[ext_resource type="Script" uid="uid://b084a27qrwlfn" path="res://addons/rational/components/sequence.gd" id="2_ye40l"]
+[ext_resource type="Script" uid="uid://lp2l3w30rxd3" path="res://addons/rational/components/decorators/failer.gd" id="3_ye40l"]
+
+[sub_resource type="Resource" id="Resource_v1qtv"]
+resource_local_to_scene = true
+resource_name = "Sequence"
+script = ExtResource("2_ye40l")
+metadata/_custom_type_script = "uid://b084a27qrwlfn"
+
+[sub_resource type="Resource" id="Resource_8kqhx"]
+resource_local_to_scene = true
+resource_name = "Failer"
+script = ExtResource("3_ye40l")
+metadata/_custom_type_script = "uid://lp2l3w30rxd3"
+
+[resource]
+resource_local_to_scene = true
+resource_name = "Sequence"
+script = ExtResource("2_ye40l")
+children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_v1qtv"), SubResource("Resource_8kqhx")])
+metadata/_custom_type_script = "uid://b084a27qrwlfn"

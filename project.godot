@@ -8,11 +8,15 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="Rational"
 run/main_scene="res://TestScene/test_scene_character.tscn"
-config/features=PackedStringArray("4.3", "GL Compatibility")
+config/features=PackedStringArray("4.6", "GL Compatibility")
 boot_splash/bg_color=Color(0.0859838, 0.0859838, 0.0859837, 1)
 boot_splash/show_image=false
 
@@ -30,6 +34,10 @@ gdscript/warnings/integer_division=0
 gdscript/warnings/narrowing_conversion=0
 gdscript/warnings/int_as_enum_without_cast=0
 gdscript/warnings/int_as_enum_without_match=0
+
+[display]
+
+window/size/always_on_top=true
 
 [editor_plugins]
 
