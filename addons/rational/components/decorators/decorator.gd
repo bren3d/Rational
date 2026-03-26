@@ -24,9 +24,9 @@ func remove_child(child: RationalComponent) -> void:
 	children_changed.emit()
 	notify_tree_changed()
 
-
+## Do nothing because there should only be one child.
 func move_child(child: RationalComponent, to_index: int) -> void:
-	pass
+	assert(children.size() < 2, "Decorator should not have more than 1 child.")
 
 
 func get_class_name() -> Array[StringName]:

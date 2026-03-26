@@ -22,10 +22,11 @@ var layout_button: Button
 
 var updating_graph: bool = false
 var arranging_nodes: bool = false
+var restoring_state: bool = false
 
 var horizontal_layout: bool = false:
 	set(value):
-		if updating_graph or arranging_nodes:
+		if updating_graph or arranging_nodes or restoring_state:
 			return
 		if horizontal_layout == value:
 			return
@@ -37,13 +38,12 @@ var active_root: RootData: set = set_active_root
 
 var graph_states: Dictionary[RootData, Dictionary]
 
-#var is_hovering_input_port: bool = false
-#var is_hovering_output_port: bool = false
-
 var is_dragging_connection: bool = false
 var connection_start_position: Vector2
 
 var create_popup_start_position: Vector2
+
+var is_moving_node: bool = false
 
 var block_selection_signal: bool = false
 
@@ -63,19 +63,25 @@ func _ready() -> void:
 	connection_drag_started.connect(_on_connection_drag_started)
 	connection_request.connect(_on_connection_request)
 	connection_drag_ended.connect(_on_connection_drag_ended)
+	
 	delete_nodes_request.connect(_on_delete_nodes_request)
+	
 	node_selected.connect(_on_node_selection_changed)
 	node_deselected.connect(_on_node_selection_changed)
-	#begin_node_move.connect(_on_begin_node_move)
-	#end_node_move.connect(_on_end_node_move)
+	
+	begin_node_move.connect(_on_begin_node_move)
+	end_node_move.connect(_on_end_node_move)
 	
 	popup.node_created.connect(_on_node_created)
 
-func _on_on_begin_node_move() -> void:
-	pass
 
-func _on_on_end_node_move() -> void:
-	pass
+func _on_begin_node_move() -> void:
+	is_moving_node = true
+
+func _on_end_node_move() -> void:
+	is_moving_node = false
+	for node: RationalGraphNode in get_graph_nodes():
+		node.is_drawing_index = false
 
 
 
@@ -95,7 +101,9 @@ func update_node_index(node: RationalGraphNode) -> void:
 	if not parent:
 		return
 	
-	parent.component.move_child(node.component, node_get_index(node))
+	var node_idx: int = node_get_index(node)
+	print("Setting node index: %s" % node_idx)
+	parent.component.move_child(node.component, node_idx)
 
 
 func node_get_index(node: RationalGraphNode) -> int:
@@ -109,7 +117,7 @@ func node_get_index(node: RationalGraphNode) -> int:
 	return children.find(node)
 
 func sort_position(node_a: RationalGraphNode, node_b: RationalGraphNode) -> bool:
-	return node_a.position_offset.x < node_b.position_offset.x if horizontal_layout else node_a.position_offset.y < node_b.position_offset.y
+	return node_a.position_offset.y < node_b.position_offset.y if horizontal_layout else node_a.position_offset.x < node_b.position_offset.x
 
 
 func node_arrange_children(node: RationalGraphNode) -> void:
@@ -120,12 +128,6 @@ func node_arrange_children(node: RationalGraphNode) -> void:
 	#for child: RationalComponent in node.component.get_children():
 		#children[child] = comp_get_graph_node(child)
 	
-	
-
-
-func _on_end_node_move() -> void:
-	pass
-
 
 
 func open_create_popup(at_position: Vector2) -> void:
@@ -243,7 +245,7 @@ func add_node(comp: RationalComponent) -> RationalGraphNode:
 	node.dragged.connect(_on_node_dragged, CONNECT_APPEND_SOURCE_OBJECT)
 	comp.children_changed.connect(node.component_children_changed.emit)
 	
-	node.set_slots(comp != active_root.root, comp is Composite)
+	node.set_slots(comp != get_root_component(), comp is Composite)
 	
 	for child: RationalComponent in comp.get_children():
 		var child_node:= add_node(child)
@@ -362,32 +364,35 @@ func offset_component(comp: RationalComponent, offset: Vector2) -> void:
 
 
 func restore_graph_state(state: Dictionary) -> void:
-	if state.is_empty(): return
+	if state.is_empty() or restoring_state: return
+	restoring_state = true
 	var is_different_layout: bool = state.get("horizontal", !horizontal_layout) != horizontal_layout
 	
 
 	var rect:= get_graph_rect()
 	
-	var comps: Array[RationalComponent]
+	var orphans: Array[RationalComponent]
 	for dict: Dictionary in state.get("nodes", {}).values():
 		if dict.has_parent or comp_has_node(dict.comp): continue
-		comps.push_back(dict.comp)
+		orphans.push_back(dict.comp)
 	
 	
 	if is_different_layout:
-		place_loose_nodes(comps)
+		place_loose_nodes(orphans)
 	
 	else:
-		for comp: RationalComponent in comps:
+		for comp: RationalComponent in orphans:
 			add_node(comp)
 		
-		for comp: RationalComponent in state.get("nodes"):
-			var node: RationalGraphNode = comp_get_graph_node(comp)# if comp_has_node(comp) else add_node(comp) 
-			node.position_offset = state.nodes[comp].get("position_offset", node.position_offset)
+		for node: RationalGraphNode in get_graph_nodes():
+			node.position_offset = state.get("nodes", {}).get(node.component, {}).get("position_offset", node.position_offset)
+		
 	
 	zoom = state.get("zoom", 1.0)
 	scroll_offset = state.get("scroll_offset", Vector2.ZERO)
-	#print("Graph state restored!")
+	
+	restoring_state = false
+
 
 func get_elbow_connection_line(from_position: Vector2, to_position: Vector2) -> PackedVector2Array:
 	var points: PackedVector2Array
@@ -478,6 +483,9 @@ func _gui_input(event: InputEvent) -> void:
 	
 	if event is InputEventMouseButton:
 		if not is_dragging_connection and event.button_index == MOUSE_BUTTON_RIGHT:
+			if is_moving_node:
+				return
+			
 			if disconnect_hovered_port():
 				return
 			
@@ -537,6 +545,27 @@ func _draw() -> void:
 	if is_dragging_connection:
 		var line := get_elbow_connection_line(connection_start_position, get_local_mouse_position())
 		draw_polyline(line, CONNECTION_LINE_COLOR, line_width, true)
+		
+	if is_moving_node:
+		#const OUTLINE_SIZE: int = 3
+		#const FONT_SIZE: int = 24
+		#const INDEX_COLOR: Color = Color.CORAL
+		for node: RationalGraphNode in get_selected_nodes():
+			#var font: Font = node.get_theme_font(&"title_font")
+			#var font_size: int = FONT_SIZE * zoom
+			#var text_offset: Vector2 = Vector2(0.0, -font.get_height(font_size))
+			
+			for child: RationalGraphNode in node_get_connected_children(node_get_parent(node.name)):
+				#var txt: String = str(node_get_index(child))
+				child.is_drawing_index = true
+				child.current_index = node_get_index(child)
+				
+				#var pos: Vector2 = child.position + child.get_custom_input_port_position(horizontal_layout) * zoom + text_offset
+				#font.draw_string(child.get_canvas_item(), Vector2(0, child.size.y), txt, 0, -1, FONT_SIZE, INDEX_COLOR)
+				#draw_string_outline(font, pos, txt, 0, -1, font_size, OUTLINE_SIZE, Color.BLACK,)
+				#draw_string(font, pos, txt, 0, -1, font_size, Color.CORAL,)
+				
+
 
 func _on_component_children_changed(node: RationalGraphNode) -> void:
 	update_node_connections(node)
@@ -580,7 +609,6 @@ func get_graph_rect() -> Rect2:
 
 func _on_tree_display_selected_items_changed(items: Array[RationalComponent]) -> void:
 	block_selection_signal = true
-	printt("SELECTED ITEMS: ", items)
 	for node: RationalGraphNode in get_graph_nodes():
 		node.selected = node.component in items
 	block_selection_signal = false
@@ -615,6 +643,9 @@ func disconnect_hovered_port() -> bool:
 			node.component.remove_child(child.component)
 	
 	return true
+
+func get_root_component() -> RationalComponent:
+	return active_root.root if active_root else null
 
 func toggle_layout() -> void:
 	horizontal_layout = !horizontal_layout

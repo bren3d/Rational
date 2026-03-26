@@ -60,6 +60,18 @@ var is_right_port_hovered: bool = false:
 		is_right_port_hovered = val
 		queue_redraw()
 
+var is_drawing_index: bool = false:
+	set(val):
+		if is_drawing_index == val: return
+		is_drawing_index = val
+		queue_redraw()
+
+var current_index: int = 0:
+	set(val):
+		if current_index == val: return
+		current_index = val
+		queue_redraw()
+
 
 func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	self.frames = frames
@@ -86,10 +98,6 @@ func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	label = Label.new()
 	label.text = " " if text.is_empty() else text
 	add_child(label)
-
-	# For bottom port
-	#add_child(Control.new())
-	
 
 
 func _ready() -> void:
@@ -211,3 +219,18 @@ func _on_size_changed():
 
 func _on_component_changed() -> void:
 	update_display()
+
+func _draw() -> void:
+	if not is_drawing_index: return
+	var font: Font = title_label.get_theme_font(&"font")
+	var font_size: int = size.y / 1.3
+	#while font.get_height(font_size) < (size.y)*1.2:
+		#font_size += 1
+	var txt: String = str(current_index)
+	var text_size: Vector2 = font.get_string_size(txt, 0, -1, font_size)
+	var pos: Vector2 = Vector2((size.x - text_size.x) / 2.0, size.y - (size.y - text_size.y))
+	
+	draw_string_outline(font, pos, txt, 0, -1, font_size, 4)
+	draw_string(font, pos, txt, 0, -1, font_size)
+	
+	

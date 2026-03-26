@@ -59,7 +59,7 @@ func set_children(val: Array[RationalComponent]) -> void:
 	children_changed.emit()
 	notify_tree_changed()
 
-# ALERT: Overriding since children can contain null.
+# NOTE: Overriding since children can contain null.
 
 func get_child_index(child: RationalComponent) -> int:
 	return children.find(child)
@@ -71,17 +71,14 @@ func get_child_count() -> int:
 	return children.size()
 
 
-func move_child(child: RationalComponent, to_index: int) -> void:
+func move_child(child: RationalComponent, to_index: int = -1) -> void:
 	var child_idx: int = children.find(child)
-	if child_idx < 0 or child_idx == to_index: return
-	
-	var children_count: int = get_child_count()
-	
-	children.insert(clampi(to_index, 0, children_count - 1), children.pop_at(child_idx))
+	if child_idx == to_index or to_index < 0: return
+	children.remove_at(child_idx)
+	children.insert(to_index, child)
 	
 	children_changed.emit()
 	notify_tree_changed()
-	
 
 
 func setup(actor: Node, board: Blackboard) -> void:

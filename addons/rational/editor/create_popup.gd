@@ -148,10 +148,14 @@ func update_tree() -> void:
 	expand_all()
 
 func collapse_all() -> void:
-	tree.get_root().call_recursive("set_collapsed", true)
+	if not tree or not tree.get_root(): return
+	for item: TreeItem in tree.get_root().get_children():
+		item.call_recursive("set_collapsed", true)
 
 func expand_all() -> void:
-	tree.get_root().call_recursive("set_collapsed", false)
+	if not tree or not tree.get_root(): return
+	for item: TreeItem in tree.get_root().get_children():
+		item.call_recursive("set_collapsed", false)
 
 
 func class_get_description(_class: String) -> String:

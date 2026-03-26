@@ -25,44 +25,39 @@ func _enter_tree() -> void:
 	
 	name = &"Rational"
 	
-	if Engine.is_editor_hint():
-		Engine.register_singleton(&"Rational", self)
-		
-		cache = Cache.new()
-		
-		frames = Frames.new()
-		Engine.set_meta(&"Frames", editor)
-		
-		editor = preload("editor/main.tscn").instantiate()
-		Engine.set_meta(&"Main", editor)
-		
-		editor.init_cache(cache)
-		editor.hide()
-		EditorInterface.get_editor_main_screen().add_child(editor)
-		
-		inspector_plugin = InpsectorPlugin.new()
-		inspector_plugin.set_cache(cache)
-		add_inspector_plugin(inspector_plugin)
-		
-		print("Rational initialized")
+	Engine.register_singleton(&"Rational", self)
+	
+	cache = Cache.new()
+	
+	editor = preload("editor/main.tscn").instantiate()
+	Engine.set_meta(&"Main", editor)
+	
+	editor.propagate_call(&"set_cache", [cache])
+	editor.hide()
+	EditorInterface.get_editor_main_screen().add_child(editor)
+	
+	inspector_plugin = InpsectorPlugin.new()
+	inspector_plugin.set_cache(cache)
+	add_inspector_plugin(inspector_plugin)
+	
+	print("Rational initialized")
 
 
 func _exit_tree() -> void:
-	if Engine.is_editor_hint():
-		editor.close()
-		
-		remove_inspector_plugin(inspector_plugin)
-		inspector_plugin = null
-		
-		cache.save()
-		cache = null
-		
-		Engine.remove_meta(&"Frames")
-		frames = null
+	editor.close()
+	
+	remove_inspector_plugin(inspector_plugin)
+	inspector_plugin = null
+	
+	cache.save()
+	cache = null
+	
+	Engine.remove_meta(&"Frames")
+	frames = null
 
-		Engine.remove_meta(&"Main")
+	Engine.remove_meta(&"Main")
 
-		Engine.unregister_singleton(&"Rational")
+	Engine.unregister_singleton(&"Rational")
 
 
 func _on_file_moved(old_file: String, new_file: String) -> void:

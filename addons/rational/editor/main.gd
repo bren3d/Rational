@@ -32,9 +32,8 @@ func _ready() -> void:
 	panel_collapse_button.tooltip_text = "Toggle panel" + (" (%s)" % toggle_panel_shortcut.get_as_text() if toggle_panel_shortcut else "")
 
 
-func init_cache(cache: Cache) -> void:
-	self.cache = cache
-	propagate_call(&"set_cache", [cache])
+func set_cache(_cache: Cache) -> void:
+	cache = _cache
 	cache.edited_tree_changed.connect(_on_edited_tree_changed)
 
 func _on_edited_tree_changed(data: RootData) -> void:

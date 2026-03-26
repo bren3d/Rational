@@ -78,22 +78,22 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="Resource" id="Resource_mg37k"]
+[sub_resource type="Resource" id="Resource_8sece"]
 resource_name = "Succeeder"
 script = ExtResource("14_8sece")
 
-[sub_resource type="Resource" id="Resource_q1v5c"]
+[sub_resource type="Resource" id="Resource_leic3"]
 resource_name = "Failer"
 script = ExtResource("15_leic3")
 
-[sub_resource type="Resource" id="Resource_4t32f"]
+[sub_resource type="Resource" id="Resource_mg37k"]
 resource_name = "Sequence"
 script = ExtResource("16_f0c8p")
 
-[sub_resource type="Resource" id="Resource_c3hlo"]
-resource_name = "Sequence1"
+[sub_resource type="Resource" id="Resource_q1v5c"]
+resource_name = "Sequence2"
 script = ExtResource("16_f0c8p")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_mg37k"), SubResource("Resource_q1v5c"), SubResource("Resource_4t32f")])
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_8sece"), SubResource("Resource_leic3"), SubResource("Resource_mg37k")])
 metadata/_custom_type_script = "uid://b084a27qrwlfn"
 metadata/_path_data = {
 &"path": NodePath("Actor/RationalTree"),
@@ -169,7 +169,7 @@ frame_progress = 0.563199
 
 [node name="RationalTree" type="Node" parent="Actor" unique_id=1609543142 node_paths=PackedStringArray("actor")]
 script = ExtResource("12_m8cgi")
-root = SubResource("Resource_c3hlo")
+root = SubResource("Resource_q1v5c")
 actor = NodePath("..")
 blackboard = SubResource("Resource_1jrjd")
 

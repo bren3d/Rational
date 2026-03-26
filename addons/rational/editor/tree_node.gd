@@ -24,6 +24,8 @@ func _init(p_item: GraphNode = null, p_parent: TreeNode = null) -> void:
 func is_leaf() -> bool:
 	return children.is_empty()
 
+func has_children() -> bool:
+	return not children.is_empty()
 
 func is_most_left() -> bool:
 	if not parent:
@@ -259,7 +261,7 @@ func _calculate_x(node: TreeNode, offset: int) -> void:
 		sibling = sibling.get_next_sibling()
 
 	for child in node.children:
-		_calculate_x(child, max_size + offset + LEVEL_DISTANCE * EditorInterface.get_editor_scale())
+		_calculate_x(child, max_size + offset + LEVEL_DISTANCE * scale)
 
 
 func _calculate_y(node: TreeNode, offset: int) -> void:
@@ -271,4 +273,4 @@ func _calculate_y(node: TreeNode, offset: int) -> void:
 		sibling = sibling.get_next_sibling()
 
 	for child in node.children:
-		_calculate_y(child, max_size + offset + LEVEL_DISTANCE * EditorInterface.get_editor_scale())
+		_calculate_y(child, max_size + offset + LEVEL_DISTANCE * scale)

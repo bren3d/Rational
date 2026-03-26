@@ -10,9 +10,6 @@ const META_ROOT: StringName = &"_is_root"
 ## Emitted when data changed.
 signal changed
 
-## Emitted when resource has changed and needs to have any pending changeds applied. Not emitted after saving.
-signal reloaded
-
 signal tree_changed
 
 signal request_edit
@@ -41,8 +38,10 @@ var unsaved_changes: bool = false: set = set_unsaved_changes, get = has_unsaved_
 var is_scene_subresource: bool = false
 
 
-func _init(_root: RationalComponent = null, _path: String = "") -> void:
-	printt(_root, _path)
+func _init(_root: RationalComponent = null, _path: String = "", node_path_data: Dictionary = {}) -> void:
+	#printt(_root, _path)
+	if not node_path_data.is_empty() and _root:
+		_root.set_meta(META_PATH, node_path_data)
 	path = _path if _path or not _root else _root.resource_path
 	root = _root if _root else load_path(_path) 
 
@@ -73,15 +72,6 @@ func set_resource_path(to_path: String) -> void:
 
 func get_root_class() -> String:
 	return root.get_script().get_global_name() if root else ""
-
-
-func to_dict() -> Dictionary:
-	return {root = root, path = path}
-
-
-static func from_dict(dict: Dictionary) -> RootData:
-	return RootData.new(dict.get("root"), dict.get("path", ""))
-
 
 func set_root(val: RationalComponent) -> void:
 		if root == val: return
@@ -142,6 +132,10 @@ func set_unsaved_changes(val: bool) -> void:
 		unsaved_changes = val
 		unsaved_changes_changed.emit()
 
+
+
+func get_node_path() -> String:
+	return root.get_meta(META_PATH, {}).get("path", "") if root else ""
 
 func copy_root_properties(from: RationalComponent, to: RationalComponent) -> void:
 	for property: Dictionary in from.get_property_list():
@@ -234,7 +228,8 @@ func serialize() -> Dictionary:
 	return {
 		name = name,
 		path = path,
-		root = root
+		root = root,
+		node_path_data = get_meta(META_PATH, {}),
 		}
 
 
@@ -243,9 +238,9 @@ static func deserialize(data: Dictionary) -> RootData:
 	if data_path:
 		var loaded_root: RationalComponent = load_path(data_path)
 		if loaded_root:
-			return RootData.new(loaded_root, data_path)
+			return RootData.new(loaded_root, data_path, data.get("node_path_data", {}))
 	
-	return RootData.new(data.get("root"), data_path)
+	return RootData.new(data.get("root"), data_path, data.get("node_path_data", {}))
 
 
 static func load_path(path: String) -> RationalComponent:

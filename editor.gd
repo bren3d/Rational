@@ -20,19 +20,15 @@ func _run() -> void:
 	print("Running...")
 	const PATH:= "res://TestScene/test_scene_character.tscn::Resource_k2f85"
 	var scene:= EditorInterface.get_edited_scene_root()
-	#scene.theme = EditorInterface.get_editor_theme()
-	#return
+	
 	
 	var plugin: EditorPlugin = Engine.get_singleton(&"Rational")
 	var cache: Cache = plugin.cache
 	
 	var main: Main = Engine.get_meta(&"Main")
 	var tree_display: TreeDisplay = main.tree_display
-	
-	EditorInterface.get_inspector().print_tree_pretty()
-	#for data: RootData in cache.get_data_list():
-		#printt(data, "| ID: %s" % ResourceLoader.get_resource_uid(data.path))
-		
+	var create_popup: Window = main.graph_edit.popup
+
 
 
 func _on_texture_changed(tex: Texture2D) -> void:

@@ -5,62 +5,65 @@
 [ext_resource type="Script" uid="uid://dslcu3blcrgyx" path="res://addons/rational/components/decorators/succeeder.gd" id="3_v1qtv"]
 [ext_resource type="Script" uid="uid://lp2l3w30rxd3" path="res://addons/rational/components/decorators/failer.gd" id="3_ye40l"]
 [ext_resource type="Script" uid="uid://cugqq0rl38kp7" path="res://addons/rational/components/fallback.gd" id="4_8kqhx"]
-[ext_resource type="Script" uid="uid://dq5d3qx2jtck3" path="res://addons/rational/components/decorators/inverter.gd" id="5_hy302"]
 [ext_resource type="Script" uid="uid://bktdpfgt2g20l" path="res://addons/rational/components/condition.gd" id="6_chyu0"]
 
-[sub_resource type="Resource" id="Resource_rcurh"]
+[sub_resource type="Resource" id="Resource_bj17s"]
 resource_name = "Succeeder"
 script = ExtResource("3_v1qtv")
 
-[sub_resource type="Resource" id="Resource_pesko"]
+[sub_resource type="Resource" id="Resource_hy302"]
 resource_local_to_scene = true
 resource_name = "Failer"
 script = ExtResource("3_ye40l")
-child = SubResource("Resource_rcurh")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_rcurh")])
+child = SubResource("Resource_bj17s")
+children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_bj17s")])
 metadata/_custom_type_script = "uid://lp2l3w30rxd3"
 
-[sub_resource type="Resource" id="Resource_v5xqg"]
+[sub_resource type="Resource" id="Resource_chyu0"]
+resource_name = "Succeeder"
+script = ExtResource("3_v1qtv")
+
+[sub_resource type="Resource" id="Resource_rcurh"]
 resource_name = "Fallback"
 script = ExtResource("4_8kqhx")
 
-[sub_resource type="Resource" id="Resource_jtbdi"]
-resource_name = "Inverter"
-script = ExtResource("5_hy302")
-
-[sub_resource type="Resource" id="Resource_8ybb0"]
-resource_name = "Failer"
-script = ExtResource("3_ye40l")
-child = SubResource("Resource_jtbdi")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_jtbdi")])
-
-[sub_resource type="Resource" id="Resource_gcqb1"]
+[sub_resource type="Resource" id="Resource_pesko"]
 resource_name = "ConditionLeaf"
 script = ExtResource("6_chyu0")
 
-[sub_resource type="Resource" id="Resource_xnu83"]
-resource_name = "Fallback"
-script = ExtResource("4_8kqhx")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_8ybb0"), SubResource("Resource_gcqb1")])
-
-[sub_resource type="Resource" id="Resource_1i1su"]
+[sub_resource type="Resource" id="Resource_v5xqg"]
 resource_name = "Failer"
 script = ExtResource("3_ye40l")
-child = SubResource("Resource_xnu83")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_xnu83")])
+child = SubResource("Resource_pesko")
+children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_pesko")])
 
-[sub_resource type="Resource" id="Resource_mbckt"]
+[sub_resource type="Resource" id="Resource_jtbdi"]
+resource_name = "ConditionLeaf"
+script = ExtResource("6_chyu0")
+
+[sub_resource type="Resource" id="Resource_8ybb0"]
+resource_name = "Fallback"
+script = ExtResource("4_8kqhx")
+children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_v5xqg"), SubResource("Resource_jtbdi")])
+
+[sub_resource type="Resource" id="Resource_gcqb1"]
+resource_name = "Failer"
+script = ExtResource("3_ye40l")
+child = SubResource("Resource_8ybb0")
+children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_8ybb0")])
+
+[sub_resource type="Resource" id="Resource_xnu83"]
 resource_local_to_scene = true
 resource_name = "Sequence"
 script = ExtResource("2_ye40l")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_v5xqg"), SubResource("Resource_1i1su")])
+children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_chyu0"), SubResource("Resource_rcurh"), SubResource("Resource_gcqb1")])
 metadata/_custom_type_script = "uid://b084a27qrwlfn"
 
 [resource]
 resource_local_to_scene = true
 resource_name = "Sequence"
 script = ExtResource("2_ye40l")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_pesko"), SubResource("Resource_mbckt")])
+children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_hy302"), SubResource("Resource_xnu83")])
 metadata/_custom_type_script = "uid://b084a27qrwlfn"
 metadata/_is_root = true
 metadata/_path_data = {
