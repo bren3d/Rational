@@ -8,14 +8,20 @@ const FILENAME: String = "cache.cfg"
 const SECTION: String = "root_data_list"
 const KEY_ROOT_DATA: String = "roots"
 
-signal root_added(root: RootData)
-signal root_erased(root: RootData)
+signal data_added(data: RootData)
+signal data_erased(data: RootData)
+
+signal data_saved(data: RootData)
+signal data_closed(data: RootData)
 
 ## Emitted when the current resource needs to be fetched again to apply updates to.
 signal root_reloaded(root_data: RootData)
 
 ## Emited when [param root] needs to be saved via file dialog.
-signal request_save_as(root: RationalComponent)
+signal request_save_as(data: RationalComponent)
+
+## Emitted when 
+signal edited_tree_changed(data: RootData)
 
 ## Class icon textures.
 var class_icons: Dictionary[StringName, Texture2D]
@@ -24,16 +30,42 @@ var root_data_list: Array[RootData]
 
 var open_scenes: PackedStringArray
 
+var edited_tree: RootData: set = set_edited_tree
+
+func set_edited_tree(val: RootData) -> void:
+	if edited_tree == val: return
+	
+	if not val in root_data_list:
+		add_data(val)
+	
+	edited_tree = val
+	
+	edited_tree_changed.emit(val)
+	
+	if edited_tree:
+		edited_tree.request_edit.emit()
+
+
+func edit_tree(tree_data: RootData) -> void:
+	if not tree_data: return
+	set_edited_tree(tree_data)
+
+func edit_root(root: RationalComponent) -> void:
+	if not has_root(root):
+		add_root(root)
+	
+	edit_tree(root_get_data(root))
+
+func edit_rational_tree(tree: RationalTree) -> void:
+	if not tree: return
+	edit_root(tree.root)
+
 func _init() -> void:
 	EditorInterface.get_file_system_dock().files_moved.connect(_on_file_moved)
 	EditorInterface.get_file_system_dock().resource_removed.connect(_on_resource_removed)
-	
-	populate_class_icons()
 	EditorInterface.get_resource_filesystem().script_classes_updated.connect(populate_class_icons, CONNECT_DEFERRED)
-	open_scenes = EditorInterface.get_open_scenes()
-	var plugin: EditorPlugin = Util.get_plugin()
-	plugin.scene_changed.connect(_on_scene_changed)
-	plugin.scene_closed.connect(_on_scene_closed)
+	populate_class_icons()
+
 
 #region Paths/Roots
 
@@ -80,14 +112,14 @@ func add_data(root_data: RootData) -> void:
 	
 	root_data.name = generate_unique_name(root_data.name, root_name_list)
 	root_data_list.push_back(root_data)
-	root_data.closed.connect(erase_data.bind(root_data), CONNECT_DEFERRED)
-	root_data.request_save.connect(save_data, CONNECT_APPEND_SOURCE_OBJECT)
-	root_added.emit(root_data)
+	root_data.closed.connect(erase_data, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_DEFERRED)
+	
+	data_added.emit(root_data)
 
 
 func add_root(root: RationalComponent, path: String = "") -> void:
 	if not root or has_root_or_path(root, path): return
-	add_data(RootData.new(root, path))
+	add_data(RootData.new(root, path if path else root.resource_path))
 
 
 func add_path(path: String) -> void:
@@ -98,7 +130,11 @@ func add_path(path: String) -> void:
 func erase_data(data: RootData) -> void:
 	if not data or not has_data(data): return
 	root_data_list.erase(data)
-	root_erased.emit(data)
+	
+	if edited_tree == data:
+		set_edited_tree(null)
+	
+	data_erased.emit(data)
 
 func erase_path(path: String) -> void:
 	if not has_path(path): return
@@ -112,10 +148,9 @@ func get_data_list() -> Array[RootData]:
 
 func _on_file_moved(from: String, to: String) -> void:
 	var data: RootData = path_get_data(from)
-	if not data: 
+	if not data or not data.root: 
 		return
-	data.set_resource_path(to)
-
+	data.path = to
 
 
 #endregion Paths/Roots
@@ -128,7 +163,7 @@ func get_save_path() -> String:
 func save() -> void:
 	var root_data: Array[Dictionary]
 	for rd: RootData in root_data_list:
-		root_data.push_back(rd.to_dict())
+		root_data.push_back(rd.serialize())
 
 	var cfg: ConfigFile = ConfigFile.new()
 	
@@ -147,59 +182,33 @@ func load() -> void:
 		await Engine.get_main_loop().process_frame
 	
 	for dict: Dictionary in cfg.get_value(SECTION, KEY_ROOT_DATA, []):
-		add_data(RootData.from_dict(dict))
+		add_data(RootData.deserialize(dict))
 
 func save_data_as(data: RootData) -> void:
 	if not data: return
+	
 	request_save_as.emit(data.root.duplicate(true))
 
 func save_data(data: RootData) -> void:
-	if not data: 
-		return
-	
-	if not data.can_save():
-		save_data_as(data)
-		# New resource being saved should trigger signal and be added.
-		return
-	
-	var path: String = data.path
-	
-	var err: int
-	if path.contains("::"):
-		var scene_path: String = path.get_slice("::", 0)
-		if scene_path in EditorInterface.get_open_scenes():
-			data.sync_path()
-			EditorInterface.open_scene_from_path(scene_path)
-			err = EditorInterface.save_scene()
-		
-		else:
-			data.reload_no_signal()
-			var packed_scene: PackedScene = load(scene_path)
-			data.sync_path()
-			err = ResourceSaver.save(packed_scene)
-			data.reloaded.emit()
-	else:
-		err = ResourceSaver.save(data.root)
-	
-	data.unsaved_changes = err != OK
-	print("Saved %s => %s" % [data, error_string(err)])
+	pass
+
 
 func load_root_data(path: String) -> RootData:
 	if not path:
 		return null
-	var data: RootData = RootData.new(load_path(path), path)
+	var data: RootData = RootData.new(null, path)
 	
 	if not data.root:
 		printerr("Unable to load root at path: %s" % path)
 		return null
-		
+	
 	return data
 
 func load_path(path: String) -> RationalComponent:
 	if not path: return null
 	
 	if ResourceLoader.exists(path):
-		return ResourceLoader.load(path)
+		return ResourceLoader.load(path, "RationalComponent")
 	
 	var resource_paths: PackedStringArray = path.split("::")
 	var scene_path: String = resource_paths[0]
@@ -214,13 +223,16 @@ func load_path(path: String) -> RationalComponent:
 			if state.get_node_property_value(i, j) is RationalComponent:
 				var root: RationalComponent = state.get_node_property_value(i, j)
 				if root.resource_path == path:
-					return root.duplicate(true)
+					return root
 	
-	return ResourceLoader.load(path)
+	return null
 
 #endregion Save/Load
 
 #region icon
+
+func class_extends_rational_component(_class: StringName) -> bool:
+	return _class in class_icons
 
 func has_icon(_class: StringName) -> bool:
 	return _class in class_icons
@@ -260,19 +272,8 @@ func _on_resource_removed(res: Resource) -> void:
 	if res is RationalComponent:
 		erase_data(get_data(res))
 
-func _on_scene_changed(node: Node) -> void:
-	if not node or not node.scene_file_path: return
-	if not node.scene_file_path in open_scenes:
-		open_scenes.push_back(node.scene_file_path)
-		for data: RootData in get_data_list():
-			if data.path.contains(node.scene_file_path):
-				data.sync_path()
-
-func _on_scene_closed(filepath: String) -> void:
-	open_scenes.erase(filepath)
-	for data: RootData in get_data_list():
-		if data.get_resource_path().contains(filepath):
-			data.reload_root()
+func _on_data_request_edit(data: RootData) -> void:
+	edit_tree(data)
 
 func generate_unique_name(initial_name: String, name_list: PackedStringArray) -> String:
 	if not initial_name: 
@@ -284,13 +285,13 @@ func generate_unique_name(initial_name: String, name_list: PackedStringArray) ->
 	var i: int = 0
 	while (i + 1) < result.length() and result.right(i + 1).is_valid_int():
 		i += 1
-		
+	
 	if i > 0:
 		base_name = result.left(result.length() - i)
 		i = result.right(i).to_int()
 	
 	while result in name_list:
-		result = base_name + str(i)
 		i += 1
+		result = base_name + str(i)
 	
 	return result

@@ -1,5 +1,5 @@
 @tool
-class_name RationalEditorStyle extends RefCounted
+extends RefCounted
 
 const SUCCESS_COLOR := Color("#07783a")
 const NORMAL_COLOR := Color("#15181e")

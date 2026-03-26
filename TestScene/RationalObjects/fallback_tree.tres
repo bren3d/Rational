@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Fallback" format=3 uid="uid://cincrbrw3hw1y"]
+
+[ext_resource type="Script" uid="uid://bf5yfufeku4t4" path="res://addons/rational/components/rational_component.gd" id="1_t6w2l"]
+[ext_resource type="Script" uid="uid://b084a27qrwlfn" path="res://addons/rational/components/sequence.gd" id="2_2v6qb"]
+[ext_resource type="Script" uid="uid://cugqq0rl38kp7" path="res://addons/rational/components/fallback.gd" id="2_awgbu"]
+[ext_resource type="Script" uid="uid://lp2l3w30rxd3" path="res://addons/rational/components/decorators/failer.gd" id="3_2v6qb"]
+
+[sub_resource type="Resource" id="Resource_yt8sq"]
+resource_name = "Sequence"
+script = ExtResource("2_2v6qb")
+
+[sub_resource type="Resource" id="Resource_utb02"]
+resource_name = "Failer"
+script = ExtResource("3_2v6qb")
+
+[resource]
+resource_name = "Fallback"
+script = ExtResource("2_awgbu")
+children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_yt8sq"), SubResource("Resource_utb02")])
+metadata/_custom_type_script = "uid://cugqq0rl38kp7"
+metadata/_is_root = true

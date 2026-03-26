@@ -6,9 +6,7 @@ const Cache:= preload("../data/cache.gd")
 
 const META_PATH: StringName = &"path"
 
-enum {COMMAND_SAVE, COMMAND_SAVE_AS, COMMAND_CLOSE, COMMAND_CLOSE_OTHERS, COMMAND_CLOSE_BELOW, COMMAND_CLOSE_ALL, COMMAND_MAX}
-
-signal root_edit_request(root: RationalComponent)
+enum {COMMAND_SAVE, COMMAND_SAVE_AS, COMMAND_CLOSE, COMMAND_CLOSE_OTHERS, COMMAND_CLOSE_BELOW, COMMAND_CLOSE_ALL, COMMAND_SET_PATH = COMMAND_CLOSE_ALL + 2, COMMAND_MAX}
 
 @export var filter_line_edit: LineEdit
 
@@ -45,8 +43,9 @@ func _ready() -> void:
 	
 	item_selected.connect(_on_item_selected)
 	
-	cache.root_added.connect(add_data)
-	cache.root_erased.connect(erase_data)
+	cache.data_added.connect(add_data)
+	cache.data_erased.connect(erase_data)
+	cache.edited_tree_changed.connect(_on_edited_tree_changed)
 
 
 func build_list() -> void:
@@ -112,7 +111,7 @@ func add_data(data: RootData) -> void:
 	update_item(item)
 	data.changed.connect(_on_data_changed.bind(item))
 	data.unsaved_changes_changed.connect(_on_data_changed.bind(item))
-	data.request_edit.connect(select_data, CONNECT_APPEND_SOURCE_OBJECT)
+	#data.edit.connect(select_data, CONNECT_APPEND_SOURCE_OBJECT)
 	data.closed.connect(_on_data_closed.bind(item))
 
 func add_root(root: RationalComponent, force_path: String = "") -> void:
@@ -166,7 +165,7 @@ func _on_filter_text_changed(new_text: String) -> void:
 
 func edit_data(data: RootData) -> void:
 	if not data: return
-	data.request_edit.emit()
+	cache.edit_tree(data)
 
 func edit_tree(tree: RationalTree) -> void:
 	if not tree: return
@@ -174,8 +173,7 @@ func edit_tree(tree: RationalTree) -> void:
 		prompt_new_root(tree)
 		return
 	
-	cache.add_root(tree.root)
-	edit_data.call_deferred(cache.root_get_data(tree.root))
+	cache.edit_root(tree.root)
 
 func select_data(data: RootData) -> void:
 	if not data or get_selected() == data_get_item(data): return
@@ -194,6 +192,9 @@ func prompt_new_root(for_tree: RationalTree = null) -> void:
 	# TODO
 	pass
 
+func _on_edited_tree_changed(data: RootData) -> void:
+	select_data(data)
+
 func set_cache(val: Cache) -> void:
 	cache = val
 
@@ -201,7 +202,7 @@ func set_cache(val: Cache) -> void:
 
 
 func save_item(item: TreeItem) -> void:
-	cache.save_data(item_get_data(item))
+	item_get_data(item).save()
 
 func save_item_as(item: TreeItem) -> void:
 	cache.save_data_as(item_get_data(item))
@@ -222,6 +223,8 @@ func init_popup() -> void:
 	popup.add_item("Close Other Tabs", COMMAND_CLOSE_OTHERS, shortcut_get_accel(COMMAND_CLOSE_OTHERS))
 	popup.add_item("Close Tabs Below", COMMAND_CLOSE_BELOW, shortcut_get_accel(COMMAND_CLOSE_BELOW))
 	popup.add_item("Close All", COMMAND_CLOSE_ALL, shortcut_get_accel(COMMAND_CLOSE_ALL))
+	popup.add_separator()
+	popup.add_item("Change Path", COMMAND_CLOSE_ALL, shortcut_get_accel(COMMAND_CLOSE_ALL))
 
 func _gui_input(event: InputEvent) -> void:
 	if not event.is_pressed() or event.is_echo(): return
@@ -255,6 +258,17 @@ func _on_popup_menu_index_pressed(index: int) -> void:
 			close_items_except(get_root().get_chilren().slice(0, get_selected().get_index()))
 		COMMAND_CLOSE_ALL:
 			close_items_except()
+		COMMAND_SET_PATH:
+			prompt_change_tree_path(get_selected())
+
+func prompt_change_tree_path(item: TreeItem) -> void:
+	DisplayServer.dialog_input_text("Set Tree Path", "", item_get_path(item), parse_tree_path_response)
+
+func parse_tree_path_response(path: String) -> void:
+	var item: TreeItem = get_selected()
+	if not item: return
+	item_get_data(item).set_path(path)
+	#item_get_root(item).take_over_path
 
 func close_items_except(items_staying: Array[TreeItem] = []) -> void:
 	for item: TreeItem in get_root().get_children():
@@ -270,7 +284,7 @@ func import_files(files: Array) -> void:
 	for file in files:
 		if not file is String: continue
 		if ResourceLoader.exists(file, "RationalComponent"):
-			cache.load_root_data(file)
+			cache.add_path(file)
 
 
 func move_item(to_position: Vector2, item: TreeItem) -> void:

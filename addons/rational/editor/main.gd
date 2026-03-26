@@ -11,12 +11,18 @@ const Cache:= preload("../data/cache.gd")
 @export var collapse_panel_container: PanelContainer
 @export var panel_collapse_button: Button
 @export var tree_panel: VSplitContainer
+@export var graph_edit: GraphEdit
 
 var floating_window: Window
 
 var shortcuts: Array[Shortcut]
 
 var toggle_panel_shortcut: Shortcut
+
+var cache: Cache
+
+var edited_tree: RootData:
+	get: return cache.edited_tree if cache else null
 
 func _ready() -> void:
 	make_floating_button.pressed.connect(_on_make_floating)
@@ -26,17 +32,32 @@ func _ready() -> void:
 	panel_collapse_button.tooltip_text = "Toggle panel" + (" (%s)" % toggle_panel_shortcut.get_as_text() if toggle_panel_shortcut else "")
 
 
-func _on_panel_collapse_pressed() -> void:
-	tree_panel.visible = !tree_panel.visible
-	panel_collapse_button.icon = get_theme_icon(&"Back" if tree_panel.visible else &"Forward", &"EditorIcons") 
+func init_cache(cache: Cache) -> void:
+	self.cache = cache
+	propagate_call(&"set_cache", [cache])
+	cache.edited_tree_changed.connect(_on_edited_tree_changed)
 
+func _on_edited_tree_changed(data: RootData) -> void:
+	graph_edit.set_active_root(data)
+	EditorInterface.set_main_screen_editor("Rational")
 
-func set_cache(cache: Cache) -> void:
-	root_file_tree.set_cache(cache)
-	tree_display.set_cache(cache)
+func prompt_save_as(data: RootData) -> void:
+	# TODO
+	pass
+
+func edit(rational_object: Object) -> void:
+	if rational_object is RationalTree:
+		edit_tree(rational_object)
+	elif rational_object is RationalComponent:
+		edit_root(rational_object)
 
 func edit_tree(tree: RationalTree) -> void:
-	root_file_tree.edit_tree(tree)
+	cache.edit_rational_tree(tree)
+
+
+func edit_root(root: RationalComponent) -> void:
+	cache.edit_root(root)
+	EditorInterface.set_main_screen_editor("Rational")
 
 func _gui_input(event: InputEvent) -> void:
 	if not event.is_pressed() or event.is_echo(): return
@@ -64,6 +85,11 @@ func apply_theme() -> void:
 	root_file_tree.add_theme_constant_override(&"icon_max_width", icon_width)
 	tree_display.add_theme_constant_override(&"icon_max_width", icon_width)
 
+
+
+func _on_panel_collapse_pressed() -> void:
+	tree_panel.visible = !tree_panel.visible
+	panel_collapse_button.icon = get_theme_icon(&"Back" if tree_panel.visible else &"Forward", &"EditorIcons") 
 
 
 #region Floating Window

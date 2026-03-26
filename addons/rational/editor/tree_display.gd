@@ -11,26 +11,24 @@ const COLOR_VISIBLE: Color = Color.WHITE
 
 @export var tree_filter_line_edit: LineEdit
 
+signal selected_items_changed(items: Array[RationalComponent])
+
 var active_root: RootData: set = set_active_root
 
 var cache: Cache
-var filter: String = ""
+var block_selection_signal: bool = false
+
 
 func _ready() -> void:
 	if not cache: return
 	tree_filter_line_edit.text_changed.connect(_on_filter_text_changed)
-	for data: RootData in cache.get_data_list():
-		add_data(data)
-	cache.root_added.connect(add_data)
+	cache.edited_tree_changed.connect(edit_tree)
+
 
 func apply_theme() -> void:
 	pass
 
-func add_data(data: RootData) -> void:
-	data.request_edit.connect(edit_data, CONNECT_APPEND_SOURCE_OBJECT)
-
-
-func edit_data(data: RootData) -> void:
+func edit_tree(data: RootData) -> void:
 	set_active_root(data)
 
 func set_active_root(data: RootData) -> void:
@@ -38,34 +36,28 @@ func set_active_root(data: RootData) -> void:
 	
 	if active_root:
 		active_root.tree_changed.disconnect(_on_root_tree_changed)
-		active_root.closed.disconnect(clear_active_root)
-		active_root.reloaded.disconnect(_on_root_reloaded)
-	
-	clear()
-	tree_filter_line_edit.clear()
 	
 	active_root = data
 	
+	#tree_filter_line_edit.clear()
 	if active_root:
-		add_component(active_root.root)
+		populate_tree()
 		active_root.tree_changed.connect(_on_root_tree_changed)
-		active_root.closed.connect(clear_active_root)
-		active_root.reloaded.connect(_on_root_reloaded)
-
-func clear_active_root() -> void:
-	active_root = null
 
 func _on_root_tree_changed() -> void:
-	if not active_root: return
-	reload_tree()
-
-func _on_root_reloaded() -> void:
 	reload_tree()
 
 func reload_tree() -> void:
+	if not active_root: return
+	var selected: Array[RationalComponent] = get_selected_components()
+	populate_tree()
+	set_selected_components.call_deferred(selected)
+
+func populate_tree() -> void:
 	clear()
-	if active_root:
-		add_component(active_root.root)
+	add_component(active_root.root)
+	filter_items(tree_filter_line_edit.text if tree_filter_line_edit else "")
+
 
 func add_component(comp: RationalComponent, parent: TreeItem = null, recursive: bool = true) -> void:
 	var item: TreeItem = create_item(parent)
@@ -88,22 +80,22 @@ func add_component(comp: RationalComponent, parent: TreeItem = null, recursive: 
 		if not child: continue
 		add_component(child, item)
 
-func item_apply_filter(item: TreeItem) -> bool:
+func item_apply_filter(item: TreeItem, filter_text: String) -> bool:
 	var any_child_visible: bool = false
 	for child: TreeItem in item.get_children():
-		any_child_visible = item_apply_filter(child) or any_child_visible
-	item.visible = any_child_visible or item_get_name(item).containsn(filter)
+		any_child_visible = item_apply_filter(child, filter_text) or any_child_visible
+	item.visible = any_child_visible or item_get_name(item).containsn(filter_text)
 	if item.visible:
 		item.uncollapse_tree()
 	return item.visible
 
 func filter_items(text: String) -> void:
-	filter = text
-	if not filter:
+
+	if not text:
 		get_root().call_recursive("set_visible", true)
 		return
 	
-	item_apply_filter(get_root())
+	item_apply_filter(get_root(), text)
 
 
 func item_get_name(item: TreeItem) -> String:
@@ -164,6 +156,31 @@ func get_visible_icon(item_visible: bool) -> Texture2D:
 func set_cache(val: Cache) -> void:
 	cache = val
 
+func get_all_selected() -> Array[TreeItem]:
+	var selected_items: Array[TreeItem]
+	var item: TreeItem = get_root() if get_root().is_selected(0) else get_next_selected(get_root())
+	while item:
+		selected_items.push_back(item)
+		item = get_next_selected(item)
+	return selected_items
+
+func get_selected_components() -> Array[RationalComponent]:
+	var selected_comps: Array[RationalComponent]
+	for i: TreeItem in get_all_selected():
+		selected_comps.push_back(item_get_comp(i))
+	return selected_comps
+
+func set_selected_components(components: Array[RationalComponent]) -> void:
+	block_selection_signal = true
+	for item: TreeItem in get_all_items():
+		if item_get_comp(item) in components:
+			item.select(0)
+			item.uncollapse_tree()
+		else:
+			item.deselect(0)
+	block_selection_signal = false
+
+
 ## Sets [param item.root.resource_name] if different.
 func generate_unique_name(item: TreeItem) -> String:
 	if not item or not item_get_comp(item): return ""
@@ -211,11 +228,7 @@ func _drop_data(at_position: Vector2, data: Variant) -> void:
 
 # { "type": "files", "files": ["res://BitMap.tres"], "from": @Tree@5673:<Tree#495833867875> }
 func _get_drag_data(at_position: Vector2) -> Variant:
-	var selected_items: Array[TreeItem]
-	var item: TreeItem = get_next_selected(get_root())
-	while item:
-		selected_items.push_back(item)
-		item = get_next_selected(item)
+	var selected_items: Array[TreeItem] = get_all_selected()
 	
 	if selected_items.is_empty():
 		return null
@@ -232,3 +245,12 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 	return {type = "items", items = selected_items, source = self}
 
 #endregion 
+
+
+func _on_multi_selected(item: TreeItem, column: int, selected: bool) -> void:
+	if block_selection_signal: return
+	selected_items_changed.emit(get_selected_components())
+
+
+func _on_graph_edit_selected_changed(components: Array[RationalComponent]) -> void:
+	set_selected_components(components)

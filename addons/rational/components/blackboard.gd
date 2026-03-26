@@ -44,6 +44,8 @@ func get_local(key: String, default: Variant = null) -> Variant:
 func set_local(key: String, value: Variant = null) -> void:
 	set_value(key, value)
 
+func get_data() -> Dictionary:
+	return _data
 
 func set_board_data(val: Dictionary) -> void:
 	board_data = val

@@ -36,7 +36,7 @@ func _enter_tree() -> void:
 		editor = preload("editor/main.tscn").instantiate()
 		Engine.set_meta(&"Main", editor)
 		
-		editor.set_cache(cache)
+		editor.init_cache(cache)
 		editor.hide()
 		EditorInterface.get_editor_main_screen().add_child(editor)
 		
@@ -70,6 +70,8 @@ func _on_file_moved(old_file: String, new_file: String) -> void:
 
 func _on_resource_saved(res: Resource) -> void:
 	if res is RationalComponent:
+		cache.add_root(res)
+		print("Adding root... %s" % res)
 		print_rich("Resource saved: %s([color=yellow]%s[/color]) @ [color=pink]%s[/color]" % [res.resource_name, res, res.resource_path])
 
 

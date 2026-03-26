@@ -1,9 +1,10 @@
+@tool
 class_name TreeNode extends RefCounted
 
 # Based on https://rachel53461.wordpress.com/2014/04/20/algorithm-for-drawing-trees/
 
-const SIBLING_DISTANCE: float = 20.0
-const LEVEL_DISTANCE: float = 40.0
+const SIBLING_DISTANCE: float = 200.0
+const LEVEL_DISTANCE: float = 120.0
 
 var x: float
 var y: float
@@ -13,11 +14,12 @@ var children: Array[TreeNode]
 
 var item: GraphNode
 
+var scale: float = EditorInterface.get_editor_scale()
+
 
 func _init(p_item: GraphNode = null, p_parent: TreeNode = null) -> void:
 	parent = p_parent
 	item = p_item
-
 
 func is_leaf() -> bool:
 	return children.is_empty()

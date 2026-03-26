@@ -9,14 +9,19 @@ signal ticked(value: int)
 
 enum {SUCCESS, FAILURE, RUNNING}
 
+@export var root: RationalComponent: set = set_root
+
 @export var actor: Node
 
 @export var blackboard: Blackboard
 
-@export var root: RationalComponent: set = set_root
 
 @export var disabled: bool = true: set = set_disabled
 
+
+func _enter_tree() -> void:
+	if root and Engine.is_editor_hint():
+		root.set_meta(&"_path_data", {path = owner.get_path_to(self), property = "root"})
 
 func _ready() -> void:
 	if not Engine.is_editor_hint(): return
@@ -42,21 +47,11 @@ func call_tree(method: StringName, args: Array = []) -> void:
 	
 	root.callv(method, args)
 
-func get_root_path() -> String:
-	if not root:
-		return ""
-	if not root.resource_path:
-		root.generate_scene_unique_id()
-	return root.resource_path
 
 func set_root(val: RationalComponent) -> void:
 	root = val
-	if root:
-		if not root.resource_name:
-			root.resource_name = name
-	
-		if not root.resource_path:
-			root.generate_scene_unique_id()
+	if root and Engine.is_editor_hint() and is_node_ready():
+		root.set_meta(&"_path_data", {path = owner.get_path_to(self), property = "root"})
 
 
 func set_disabled(val: bool) -> void:

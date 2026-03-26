@@ -14,15 +14,13 @@
 [ext_resource type="Script" uid="uid://davp5u2xw823n" path="res://addons/rational/components/rational_tree.gd" id="12_m8cgi"]
 [ext_resource type="Script" uid="uid://6ug5fa63l34w" path="res://addons/rational/components/blackboard.gd" id="13_6m14f"]
 [ext_resource type="Texture2D" uid="uid://c6xt30y0jeyie" path="res://addons/rational/icons/Debug.svg" id="14_4x1kh"]
+[ext_resource type="Script" uid="uid://dslcu3blcrgyx" path="res://addons/rational/components/decorators/succeeder.gd" id="14_8sece"]
 [ext_resource type="Script" uid="uid://bf5yfufeku4t4" path="res://addons/rational/components/rational_component.gd" id="14_s7iw1"]
-[ext_resource type="Script" uid="uid://dslcu3blcrgyx" path="res://addons/rational/components/decorators/succeeder.gd" id="15_wh884"]
+[ext_resource type="Script" uid="uid://lp2l3w30rxd3" path="res://addons/rational/components/decorators/failer.gd" id="15_leic3"]
 [ext_resource type="Script" uid="uid://b084a27qrwlfn" path="res://addons/rational/components/sequence.gd" id="16_f0c8p"]
-[ext_resource type="Script" uid="uid://lp2l3w30rxd3" path="res://addons/rational/components/decorators/failer.gd" id="16_wh884"]
 [ext_resource type="Script" uid="uid://bktdpfgt2g20l" path="res://addons/rational/components/condition.gd" id="17_8sece"]
-[ext_resource type="Script" uid="uid://dq5d3qx2jtck3" path="res://addons/rational/components/decorators/inverter.gd" id="17_f0c8p"]
 [ext_resource type="Texture2D" uid="uid://ya105wb6fqmt" path="res://addons/rational/icons/EditorHandle.svg" id="18_t2hwn"]
 [ext_resource type="Script" uid="uid://cugqq0rl38kp7" path="res://addons/rational/components/fallback.gd" id="20_leic3"]
-[ext_resource type="Script" uid="uid://bify0ecwxtt67" path="res://addons/rational/components/action.gd" id="20_mg37k"]
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_0cnec"]
 animations = [{
@@ -80,133 +78,62 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="Resource" id="Resource_1jrjd"]
-script = ExtResource("13_6m14f")
-
-[sub_resource type="Resource" id="Resource_wh884"]
-resource_local_to_scene = true
+[sub_resource type="Resource" id="Resource_mg37k"]
 resource_name = "Succeeder"
-script = ExtResource("15_wh884")
-metadata/_custom_type_script = "uid://dslcu3blcrgyx"
-
-[sub_resource type="Resource" id="Resource_f0c8p"]
-resource_local_to_scene = true
-resource_name = "Failer"
-script = ExtResource("16_wh884")
-metadata/_custom_type_script = "uid://lp2l3w30rxd3"
+script = ExtResource("14_8sece")
 
 [sub_resource type="Resource" id="Resource_q1v5c"]
-resource_local_to_scene = true
-resource_name = "ConditionLeaf"
-script = ExtResource("17_8sece")
-condition = "board.has(\"something\")"
-metadata/_custom_type_script = "uid://bktdpfgt2g20l"
+resource_name = "Failer"
+script = ExtResource("15_leic3")
 
-[sub_resource type="Resource" id="Resource_mg37k"]
-resource_local_to_scene = true
-resource_name = "Inverter"
-script = ExtResource("17_f0c8p")
-child = SubResource("Resource_q1v5c")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_q1v5c")])
-metadata/_custom_type_script = "uid://dq5d3qx2jtck3"
-
-[sub_resource type="Resource" id="Resource_s7iw1"]
-resource_local_to_scene = true
-resource_name = "blah"
+[sub_resource type="Resource" id="Resource_4t32f"]
+resource_name = "Sequence"
 script = ExtResource("16_f0c8p")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_wh884"), SubResource("Resource_f0c8p"), SubResource("Resource_mg37k")])
+
+[sub_resource type="Resource" id="Resource_c3hlo"]
+resource_name = "Sequence1"
+script = ExtResource("16_f0c8p")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_mg37k"), SubResource("Resource_q1v5c"), SubResource("Resource_4t32f")])
 metadata/_custom_type_script = "uid://b084a27qrwlfn"
+metadata/_path_data = {
+&"path": NodePath("Actor/RationalTree"),
+&"property": "root"
+}
+metadata/_is_root = true
+
+[sub_resource type="Resource" id="Resource_1jrjd"]
+script = ExtResource("13_6m14f")
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_b1mpv"]
 radius = 200.0
 
+[sub_resource type="Resource" id="Resource_5y2e1"]
+resource_name = "ConditionLeaf"
+script = ExtResource("17_8sece")
+
+[sub_resource type="Resource" id="Resource_i7w4y"]
+resource_name = "ConditionLeaf"
+script = ExtResource("17_8sece")
+
+[sub_resource type="Resource" id="Resource_xvw0u"]
+resource_name = "Sequence"
+script = ExtResource("16_f0c8p")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_5y2e1"), SubResource("Resource_i7w4y")])
+
+[sub_resource type="Resource" id="Resource_phjxm"]
+resource_name = "RationalTree2"
+script = ExtResource("20_leic3")
+children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_xvw0u")])
+metadata/_custom_type_script = "uid://cugqq0rl38kp7"
+metadata/_is_root = true
+metadata/_path_data = {
+&"path": NodePath("Actor2/RationalTree2"),
+&"property": "root"
+}
+
 [sub_resource type="Resource" id="Resource_7hfrv"]
 script = ExtResource("13_6m14f")
 metadata/_custom_type_script = "uid://6ug5fa63l34w"
-
-[sub_resource type="Resource" id="Resource_k0gel"]
-resource_local_to_scene = true
-resource_name = "Failer"
-script = ExtResource("16_wh884")
-metadata/_custom_type_script = "uid://lp2l3w30rxd3"
-
-[sub_resource type="Resource" id="Resource_18x2g"]
-resource_local_to_scene = true
-resource_name = "Fallback"
-script = ExtResource("20_leic3")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_k0gel")])
-metadata/_custom_type_script = "uid://cugqq0rl38kp7"
-
-[sub_resource type="Resource" id="Resource_4t32f"]
-resource_local_to_scene = true
-resource_name = "Inverter"
-script = ExtResource("17_f0c8p")
-child = SubResource("Resource_18x2g")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_18x2g")])
-metadata/_custom_type_script = "uid://dq5d3qx2jtck3"
-
-[sub_resource type="Resource" id="Resource_c3hlo"]
-resource_local_to_scene = true
-resource_name = "Succeeder"
-script = ExtResource("15_wh884")
-metadata/_custom_type_script = "uid://dslcu3blcrgyx"
-
-[sub_resource type="Resource" id="Resource_leic3"]
-resource_local_to_scene = true
-resource_name = "Failer"
-script = ExtResource("16_wh884")
-metadata/_custom_type_script = "uid://lp2l3w30rxd3"
-
-[sub_resource type="Resource" id="Resource_xa1ah"]
-resource_local_to_scene = true
-resource_name = "Sequence"
-script = ExtResource("16_f0c8p")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_c3hlo"), SubResource("Resource_leic3")])
-metadata/_custom_type_script = "uid://b084a27qrwlfn"
-
-[sub_resource type="Resource" id="Resource_uq5so"]
-resource_local_to_scene = true
-resource_name = "ActionLeaf"
-script = ExtResource("20_mg37k")
-metadata/_custom_type_script = "uid://bify0ecwxtt67"
-
-[sub_resource type="Resource" id="Resource_5y2e1"]
-resource_local_to_scene = true
-resource_name = "ConditionLeaf"
-script = ExtResource("17_8sece")
-metadata/_custom_type_script = "uid://bktdpfgt2g20l"
-
-[sub_resource type="Resource" id="Resource_i7w4y"]
-resource_local_to_scene = true
-resource_name = "Fallback"
-script = ExtResource("20_leic3")
-metadata/_custom_type_script = "uid://cugqq0rl38kp7"
-
-[sub_resource type="Resource" id="Resource_xvw0u"]
-resource_local_to_scene = true
-resource_name = "Fallback1"
-script = ExtResource("20_leic3")
-metadata/_custom_type_script = "uid://cugqq0rl38kp7"
-
-[sub_resource type="Resource" id="Resource_u7hrl"]
-resource_local_to_scene = true
-resource_name = "Fallback2"
-script = ExtResource("20_leic3")
-metadata/_custom_type_script = "uid://cugqq0rl38kp7"
-
-[sub_resource type="Resource" id="Resource_phjxm"]
-resource_local_to_scene = true
-resource_name = "Fallback"
-script = ExtResource("20_leic3")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_uq5so"), SubResource("Resource_5y2e1"), SubResource("Resource_i7w4y"), SubResource("Resource_xvw0u"), SubResource("Resource_u7hrl")])
-metadata/_custom_type_script = "uid://cugqq0rl38kp7"
-
-[sub_resource type="Resource" id="Resource_k2f85"]
-resource_local_to_scene = true
-resource_name = "dumb"
-script = ExtResource("20_leic3")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_4t32f"), SubResource("Resource_xa1ah"), SubResource("Resource_phjxm")])
-metadata/_custom_type_script = "uid://cugqq0rl38kp7"
 
 [sub_resource type="GDScript" id="GDScript_vfo5c"]
 script/source = "@tool
@@ -242,9 +169,9 @@ frame_progress = 0.563199
 
 [node name="RationalTree" type="Node" parent="Actor" unique_id=1609543142 node_paths=PackedStringArray("actor")]
 script = ExtResource("12_m8cgi")
+root = SubResource("Resource_c3hlo")
 actor = NodePath("..")
 blackboard = SubResource("Resource_1jrjd")
-root = SubResource("Resource_s7iw1")
 
 [node name="Area2D" type="Area2D" parent="Actor" unique_id=1482673747]
 
@@ -260,9 +187,9 @@ frame_progress = 0.563199
 [node name="RationalTree2" type="Node" parent="Actor2" unique_id=1425211417 node_paths=PackedStringArray("actor")]
 unique_name_in_owner = true
 script = ExtResource("12_m8cgi")
+root = SubResource("Resource_phjxm")
 actor = NodePath("..")
 blackboard = SubResource("Resource_7hfrv")
-root = SubResource("Resource_k2f85")
 
 [node name="Area2D" type="Area2D" parent="Actor2" unique_id=1026846961]
 

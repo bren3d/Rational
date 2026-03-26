@@ -9,7 +9,7 @@ const TreeDisplay:= preload("res://addons/rational/editor/tree_display.gd")
 
 const Util:= preload("res://addons/rational/util.gd")
 
-var data: Dictionary = {key = "key"}
+#var data: Dictionary = {key = "key"}
 
 var tw: Tween
 @export var path_list: PackedStringArray
@@ -29,49 +29,15 @@ func _run() -> void:
 	var main: Main = Engine.get_meta(&"Main")
 	var tree_display: TreeDisplay = main.tree_display
 	
-	var panel_container: PanelContainer = main.get_node(^"MainVBox/main/GraphEdit/CollapsePanelContainer")
-	panel_container.theme_type_variation = &"PanelForeground"
-	panel_container.remove_theme_stylebox_override(&"panel")
-	
-	var path:= PATH
-	
-	
-	#var comp: RationalComponent = Util.load_root(path)
-	#print(comp, comp.get_children())
-	
-	#
-	#print(comp, comp.get_children(true))
-	#if path.containsn("::"):
-		#var resource_paths: PackedStringArray = path.split("::")
-		#var scene_path: String = resource_paths[0]
-		#
-	#
-	#else: 
-		#return ResourceLoader.load(path)
-	#
-	
+	EditorInterface.get_inspector().print_tree_pretty()
+	#for data: RootData in cache.get_data_list():
+		#printt(data, "| ID: %s" % ResourceLoader.get_resource_uid(data.path))
+		
 
-	
-	#print(tree_display.get_custom_popup_rect())
-	#var item: TreeItem = root
-	#while item:
-		#print(item.get_text(0))
-		#item = item.get_next_in_tree()
-	#while item:
-		#print(item.get_text(0))
-		#item = item.get_next_visible()
-	##print()
-	
-	#print_cache(cache)
-	#cache.save()
-	#print_cache(cache)
-	
-	#var res: Resource = Resource.new()
-	#var ref: Resource = res
-	#printt(res.get_instance_id(), ref.get_instance_id(), res.get_instance_id() == ref.get_instance_id())
-	#res.set_script(preload("res://addons/rational/components/decorators/inverter.gd"))
-	#
-	#printt(res.get_instance_id(), ref.get_instance_id(), res.get_instance_id() == ref.get_instance_id())
+
+func _on_texture_changed(tex: Texture2D) -> void:
+	print("texture changed: %s" % tex)
+
 
 func shortcut_get_accel(shortcut_path: String) -> Key:
 	var shortcut: Shortcut = EditorInterface.get_editor_settings().get_shortcut(shortcut_path)

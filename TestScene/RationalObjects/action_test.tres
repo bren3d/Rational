@@ -1,8 +1,0 @@
-[gd_resource type="Resource" script_class="ActionLeaf" format=3 uid="uid://bty5aau4dat08"]
-
-[ext_resource type="Script" uid="uid://bify0ecwxtt67" path="res://addons/rational/components/action.gd" id="1_0ipkv"]
-
-[resource]
-resource_local_to_scene = true
-resource_name = "ActionLeaf"
-script = ExtResource("1_0ipkv")
