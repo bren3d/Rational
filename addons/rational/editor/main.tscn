@@ -16,7 +16,7 @@ content_margin_bottom = 0.0
 _source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#ff5d5d\" d=\"M2 1v8.586l1.293-1.293a1 1 0 0 1 1.414 0L7 10.587l2.293-2.293a1 1 0 0 1 1.414 0L13 10.586l1-1V6H9V1H2zm8 0v4h4zm-6 9.414-2 2V15h12v-2.586l-.293.293a1 1 0 0 1-1.414 0L10 10.414l-2.293 2.293a1 1 0 0 1-1.414 0L4 10.414z\"/></svg>
 "
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hsmtw"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gplcq"]
 content_margin_left = 0.0
 content_margin_top = 0.0
 content_margin_right = 0.0
@@ -115,7 +115,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TreeSecondary"
-theme_override_constants/inner_item_margin_left = -8
+theme_override_constants/h_separation = 0
 theme_override_constants/item_margin = 0
 theme_override_constants/icon_max_width = 16
 theme_override_constants/draw_guides = 0
@@ -174,11 +174,10 @@ script = ExtResource("4_0erff")
 tree_filter_line_edit = NodePath("../TreeFilter")
 
 [node name="GraphEdit" type="GraphEdit" parent="MainVBox/main" unique_id=962510277 node_paths=PackedStringArray("popup")]
-custom_minimum_size = Vector2(200, 300)
+custom_minimum_size = Vector2(300, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 2.0
-scroll_offset = Vector2(0.00024414063, -6.1035156e-05)
 snapping_enabled = false
 show_arrange_button = false
 script = ExtResource("5_hsmtw")
@@ -194,7 +193,7 @@ offset_right = 24.0
 offset_bottom = -28.0
 grow_vertical = 0
 theme_type_variation = &"PanelForeground"
-theme_override_styles/panel = SubResource("StyleBoxFlat_hsmtw")
+theme_override_styles/panel = SubResource("StyleBoxFlat_gplcq")
 
 [node name="PanelCollapseButton" type="Button" parent="MainVBox/main/GraphEdit/CollapsePanelContainer" unique_id=843086357]
 layout_mode = 2

@@ -24,9 +24,14 @@ func _parse_property(object: Object, type: Variant.Type, name: String, hint_type
 		
 		var picker:= create_picker(object, name, hint_string)
 		
-		#picker.resource_changed.connect(_on_root_changed.bind(object, name))
 		return true
 	
+	#if is_editing_tree and name == "disabled":
+		#for eprop: EditorProperty in EditorInterface.get_inspector().find_children("*", "EditorProperty", true, false):
+			#if eprop.get_edited_property() != &"blackboard": continue
+			#eprop.resource_selected.connect(func(p: String, res: Resource): print("Path: %s | Resource: %s" %[p, res]))
+			#eprop.object_id_selected.connect(func(p: StringName, id: int): print("Path: %s | Resource: %s" %[p, id]))
+		
 	
 	return false #type == TYPE_OBJECT and hint_string == ""
 
@@ -82,29 +87,25 @@ func _parse_category(object: Object, category: String) -> void:
 		#button.pressed.connect(_on_edit_component_button_pressed.bind(object))
 
 
-func create_button() -> Button:
-	var button: Button = Button.new()
-	button.theme_type_variation = &"InspectorActionButton"
-	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	button.text = "Edit Tree"
-	button.icon = Engine.get_singleton(&"Rational")._get_plugin_icon() if Engine.has_singleton(&"Rational") else \
-			EditorInterface.get_editor_theme().get_icon(&"ExternalLink", &"EditorIcons")
-	
-	button.tooltip_text = "Switch to the behavior tree editor tab."
-	
-	add_custom_control(create_margin_container(button))
-	return button
+func _on_editor_property_changed(property: StringName, value: Variant, field: StringName, changing: bool, picker: EditorResourcePicker) -> void:
+	picker.get_parent().property_can_revert_changed.emit(property, value != null)
+	if picker.edited_resource != value:
+		picker.edited_resource = value
 
 
-func create_margin_container(child_control: Control = null, margins: Vector2 = Vector2(4, 4), ) -> MarginContainer:
-	margins * EditorInterface.get_editor_scale()
-	var margin_container := MarginContainer.new()
-	margin_container.add_theme_constant_override("margin_left", margins.x)
-	margin_container.add_theme_constant_override("margin_right", margins.x)
-	margin_container.add_theme_constant_override("margin_top", margins.y)
-	margin_container.add_theme_constant_override("margin_bottom", margins.y)
-	if child_control: margin_container.add_child(child_control)
-	return margin_container
+func _on_picker_changed(res: Resource, editor_property: EditorProperty) -> void:
+	editor_property.emit_changed(editor_property.get_edited_property(), res)
+	if editor_property.get_edited_object() is Node:
+		update_node_path(editor_property.get_edited_object(), editor_property.get_edited_property())
+
+
+func _on_picker_selected(resource: Resource, inspect: bool, editor_property: EditorProperty) -> void:
+	printt(resource, "INSPECTED: %s" % inspect)
+	editor_property.select(0)
+	if inspect:
+		EditorInterface.edit_resource.call_deferred(resource)
+	cache.edit_root(resource)
+
 
 
 func create_picker(object: Object, property: String, base_type: String = "RationalComponent") -> EditorResourcePicker:
@@ -130,19 +131,26 @@ func create_picker(object: Object, property: String, base_type: String = "Ration
 	return picker
 
 
-func _on_editor_property_changed(property: StringName, value: Variant, field: StringName, changing: bool, picker: EditorResourcePicker) -> void:
-	picker.get_parent().property_can_revert_changed.emit.call_deferred(property, value != null)
-	if picker.edited_resource == value: return
-	picker.edited_resource = value
+func create_button() -> Button:
+	var button: Button = Button.new()
+	button.theme_type_variation = &"InspectorActionButton"
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.text = "Edit Tree"
+	button.icon = Engine.get_singleton(&"Rational")._get_plugin_icon() if Engine.has_singleton(&"Rational") else \
+			EditorInterface.get_editor_theme().get_icon(&"ExternalLink", &"EditorIcons")
+	
+	button.tooltip_text = "Switch to the behavior tree editor tab."
+	
+	add_custom_control(create_margin_container(button))
+	return button
 
 
-func _on_picker_changed(res: Resource, editor_property: EditorProperty) -> void:
-	editor_property.emit_changed(editor_property.get_edited_property(), res)
-	if editor_property.get_edited_object() is Node:
-		update_node_path(editor_property.get_edited_object(), editor_property.get_edited_property())
-
-
-func _on_picker_selected(resource: Resource, inspect: bool, editor_property: EditorProperty) -> void:
-	editor_property.select(0)
-	cache.edit_root(resource)
-	#editor_property.resource_selected.emit(editor_property.get_edited_property(), resource)
+func create_margin_container(child_control: Control = null, margins: Vector2 = Vector2(4, 4), ) -> MarginContainer:
+	margins * EditorInterface.get_editor_scale()
+	var margin_container := MarginContainer.new()
+	margin_container.add_theme_constant_override("margin_left", margins.x)
+	margin_container.add_theme_constant_override("margin_right", margins.x)
+	margin_container.add_theme_constant_override("margin_top", margins.y)
+	margin_container.add_theme_constant_override("margin_bottom", margins.y)
+	if child_control: margin_container.add_child(child_control)
+	return margin_container

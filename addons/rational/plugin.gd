@@ -44,7 +44,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
-	editor.close()
+	editor.queue_free()
 	
 	remove_inspector_plugin(inspector_plugin)
 	inspector_plugin = null
@@ -77,7 +77,7 @@ func _handles(object: Object) -> bool:
 func _edit(object: Object) -> void:
 	if cache and object and editor:
 		editor.edit_tree(object)
-
+	
 	if EditorInterface.get_inspector().get_edited_object() != object:
 		EditorInterface.inspect_object(object, "", true)
 

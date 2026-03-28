@@ -32,7 +32,9 @@ var horizontal_layout: bool = false:
 			return
 		horizontal_layout = value
 		update_layout_button()
-		update_graph()
+		save_current_orphans()
+		arrange_graph_nodes()
+		queue_redraw.call_deferred()
 
 var active_root: RootData: set = set_active_root
 
@@ -47,12 +49,61 @@ var is_moving_node: bool = false
 
 var block_selection_signal: bool = false
 
+var is_restoring_state: bool = false
+
+var reset_dragged_nodes: bool = false
+# TODO - may use editor undoredo
+#var undo_redo: UndoRedo = UndoRedo.new()
+var shortcuts: Dictionary[Shortcut, Callable]
+
+#region shortcuts
+
+func init_shortcuts() -> void:
+	var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
+	
+	shortcuts[editor_settings.get_shortcut("canvas_item_editor/toggle_grid")] = toggle_grid
+	shortcuts[editor_settings.get_shortcut("canvas_item_editor/use_grid_snap")] = toggle_snap
+	shortcuts[editor_settings.get_shortcut("canvas_item_editor/frame_selection")] = frame_selection
+	shortcuts[editor_settings.get_shortcut("canvas_item_editor/center_selection")] = center_selection
+	shortcuts[editor_settings.get_shortcut("canvas_item_editor/zoom_minus")] = zoom_out
+	shortcuts[editor_settings.get_shortcut("canvas_item_editor/zoom_plus")] = zoom_in
+	
+	for percent in [3.125, 6.25, 12.5, 25, 50, 100, 200, 400, 800, 1600]:
+		shortcuts[editor_settings.get_shortcut("canvas_item_editor/zoom_%s_percent" % percent)] = set_zoom.bind(float(percent)/100.0)
+	
+	shortcuts[editor_settings.get_shortcut("canvas_item_editor/cancel_transform")] = cancel_drag
+	
+	shortcuts.erase(null)
+
+
+func zoom_in() -> void:
+	zoom *= zoom_step
+
+func zoom_out() -> void:
+	zoom /= zoom_step
+
+func center_selection() -> void:
+	if has_selected_node(): 
+		scroll_offset = nodes_get_rect(get_selected_nodes()).get_center() * zoom - size / 2.0
+
+func frame_selection() -> void:
+	if not has_selected_node(): return
+	var frame: Rect2 = nodes_get_rect(get_selected_nodes())
+	zoom = minf(size.x/frame.size.x, size.y/frame.size.y)/ zoom_step
+	scroll_offset = frame.get_center() * zoom - size / 2.0
+
+func toggle_grid() -> void:
+	show_grid = !show_grid
+
+func toggle_snap() -> void:
+	snapping_enabled = !snapping_enabled
+
+#endregion shortcuts
 
 func _ready() -> void:
 	style = EditorStyle.new()
 	
-	custom_minimum_size = Vector2(200, 300)
-	#show_arrange_button = false
+	custom_minimum_size = Vector2(200, 200) * EditorInterface.get_editor_scale()
 	layout_button = Button.new()
 	layout_button.flat = true
 	layout_button.focus_mode = Control.FOCUS_NONE
@@ -73,36 +124,30 @@ func _ready() -> void:
 	end_node_move.connect(_on_end_node_move)
 	
 	popup.node_created.connect(_on_node_created)
+	
+	init_shortcuts()
 
 
-func _on_begin_node_move() -> void:
-	is_moving_node = true
-
-func _on_end_node_move() -> void:
-	is_moving_node = false
-	for node: RationalGraphNode in get_graph_nodes():
-		node.is_drawing_index = false
-
-
-
-func _on_node_selection_changed(node: Node) -> void:
-	if block_selection_signal: return
-	selected_changed.emit(get_selected_components())
+func _shortcut_input(event: InputEvent) -> void:
+	if not event.is_pressed() or event.is_echo():
+		return
+	
+	for sc: Shortcut in shortcuts:
+		if sc.matches_event(event):
+			accept_event()
+			shortcuts[sc].call()
+			return
 
 
-func _on_node_dragged(from: Vector2, to: Vector2, node: RationalGraphNode) -> void:
-	print("%s dragged %v => %v" % [node.component.resource_name, from, to])
-	update_node_index(node)
-
-
-func update_node_index(node: RationalGraphNode) -> void:
+## Sets [param node].component's index equal to [param node]'s index on the graph.
+func update_component_index(node: RationalGraphNode) -> void:
 	var parent: RationalGraphNode = node_get_parent(node.name)
 	
 	if not parent:
 		return
 	
 	var node_idx: int = node_get_index(node)
-	print("Setting node index: %s" % node_idx)
+	#print("Setting node index: %s" % node_idx)
 	parent.component.move_child(node.component, node_idx)
 
 
@@ -127,7 +172,6 @@ func node_arrange_children(node: RationalGraphNode) -> void:
 	
 	#for child: RationalComponent in node.component.get_children():
 		#children[child] = comp_get_graph_node(child)
-	
 
 
 func open_create_popup(at_position: Vector2) -> void:
@@ -164,23 +208,6 @@ func _on_delete_nodes_request(nodes: Array[StringName]) -> void:
 
 
 
-func delete_node(node_name: StringName) -> void:
-	var node: RationalGraphNode = get_node(String(node_name))
-	if not node or not node.is_slot_enabled_left(0): 
-		return
-	
-	if node.component is Composite:
-		var new_children: Array[RationalComponent] = []
-		node.component.set_children(new_children)
-	
-	for con: Dictionary in get_connection_list_from_node(node_name):
-		if con.to_node == node_name:
-			var parent: RationalComponent = node_get_comp(con.from_node)
-			parent.remove_child(node.component)
-	
-	remove_child(node)
-	node.queue_free()
-
 
 func node_get_comp(node_name: String) -> RationalComponent:
 	return get_node(node_name).component if has_node(node_name) else null
@@ -206,7 +233,7 @@ func node_add_child(parent_name: StringName, child_name: StringName) -> void:
 		return
 	
 	if parent.component is Composite:
-		var child_to_add: RationalComponent = child.component.duplicate() if active_root.root.has_child(child.component, true) else child.component
+		var child_to_add: RationalComponent = child.component
 		var child_index: int = node_get_index(child)
 		
 		parent.component.add_child(child_to_add, child_index)
@@ -223,8 +250,10 @@ func update_graph() -> void:
 	
 	populate_tree()
 	
-	arrange_graph_nodes()
-	
+	if can_restore_state():
+		restore_root_state()
+	else:
+		arrange_graph_nodes()
 	
 	queue_redraw.call_deferred()
 	
@@ -232,8 +261,11 @@ func update_graph() -> void:
 
 
 func populate_tree() -> void:
-	if not active_root or not active_root.root: return
-	add_node(active_root.root)
+	if not get_root_component(): return
+	add_node(get_root_component())
+	
+	for comp: RationalComponent in get_active_root_orphans():
+		add_node(comp)
 
 ## Recursively adds all children.
 func add_node(comp: RationalComponent) -> RationalGraphNode:
@@ -241,9 +273,8 @@ func add_node(comp: RationalComponent) -> RationalGraphNode:
 	add_child(node)
 	
 	node.set_component(comp)
-	node.component_children_changed.connect(_on_component_children_changed.bind(node))
+	node.component_children_changed.connect(_on_component_children_changed, CONNECT_APPEND_SOURCE_OBJECT)
 	node.dragged.connect(_on_node_dragged, CONNECT_APPEND_SOURCE_OBJECT)
-	comp.children_changed.connect(node.component_children_changed.emit)
 	
 	node.set_slots(comp != get_root_component(), comp is Composite)
 	
@@ -253,7 +284,27 @@ func add_node(comp: RationalComponent) -> RationalGraphNode:
 	
 	return node
 
+
+func delete_node(node_name: StringName) -> void:
+	var node: RationalGraphNode = get_node(String(node_name))
+	if not node or not node.is_slot_enabled_left(0): 
+		return
+	
+	if node.component is Composite:
+		var new_children: Array[RationalComponent] = []
+		node.component.set_children(new_children)
+	
+	for con: Dictionary in get_connection_list_from_node(node_name):
+		if con.to_node == node_name:
+			var parent: RationalComponent = node_get_comp(con.from_node)
+			parent.remove_child(node.component)
+	
+	remove_child(node)
+	node.queue_free()
+
+
 func node_get_connected_children(node: RationalGraphNode) -> Array[RationalGraphNode]:
+	if not node: return []
 	var result: Array[RationalGraphNode]
 	for con: Dictionary in get_connection_list_from_node(node.name):
 		if con.from_node == node.name:
@@ -263,18 +314,15 @@ func node_get_connected_children(node: RationalGraphNode) -> Array[RationalGraph
 
 ## Only updates child connections.
 func update_node_connections(node: RationalGraphNode) -> void:
-	for con: Dictionary in get_connection_list_from_node(node.name):
-		if con.from_node == node.name:
-			disconnect_node(con.from_node, 0, con.to_node, 0)
+	for child_node: RationalGraphNode in node_get_connected_children(node):
+		if node.component.has_child(child_node.component): continue
+		disconnect_node(node.name, 0, child_node.name, 0)
 	
 	for child: RationalComponent in node.component.get_children():
-		var child_node: RationalGraphNode
-		if comp_has_node(child):
-			child_node = comp_get_graph_node(child)
-		else:
-			child_node = add_node(child)
-			print("%s creating child node: %s" % [node.component, child])
-		connect_node(node.name, 0, child_node.name, 0)
+		if not comp_has_node(child):
+			add_node(child)
+		if not is_node_connected(node.name, 0, comp_get_node_name(child), 0):
+			connect_node(node.name, 0, comp_get_node_name(child), 0)
 
 
 func create_tree_node(comp: RationalComponent, parent: TreeNode = null) -> TreeNode:
@@ -289,9 +337,14 @@ func arrange_graph_nodes() -> void:
 	
 	arranging_nodes = true
 	
-	var tree_node:= create_tree_node(active_root.root)
+	propagate_call(&"set_horizontal", [horizontal_layout])
+	
+	var tree_node:= create_tree_node(get_root_component())
 	tree_node.update_positions(horizontal_layout)
 	place_nodes(tree_node)
+	
+	var offset: Vector2 = get_tree_end(tree_node) * Vector2(float(horizontal_layout), float(!horizontal_layout))
+	place_orphans(get_active_root_orphans(), offset)
 	
 	arranging_nodes = false
 
@@ -301,6 +354,41 @@ func place_nodes(node: TreeNode) -> void:
 	for child in node.children:
 		place_nodes(child)
 
+func get_tree_rect(node: TreeNode) -> Rect2:
+	var rect: Rect2 = Rect2(node.item.position_offset, node.item.size)
+	for child in node.children:
+		rect = rect.merge(get_tree_rect(child))
+	return rect
+
+func get_tree_end(tree_node: TreeNode) -> float:
+	var result: float = tree_node.x + tree_node.item.layout_size
+	for child in tree_node.children:
+		result = maxf(result, get_tree_end(child))
+	return result
+
+func get_orphan_offset(tree_node: TreeNode) -> Vector2:
+	return get_tree_rect(tree_node).end * Vector2(float(horizontal_layout), float(!horizontal_layout))
+
+func place_orphans(components: Array[RationalComponent], offset: Vector2 = Vector2.ZERO) -> void:
+	var temp_root: Composite = Sequence.new()
+	var node: RationalGraphNode = add_node(temp_root)
+	for comp: RationalComponent in components:
+		temp_root.add_child(comp)
+	
+	var tree_node:= create_tree_node(temp_root)
+	tree_node.update_positions(horizontal_layout)
+	place_nodes(tree_node)
+	delete_node(node.name)
+	
+	for comp: RationalComponent in components:
+		offset_component(comp, offset)
+
+
+func offset_component(comp: RationalComponent, offset: Vector2) -> void:
+	comp_get_graph_node(comp).position_offset += offset
+	for child in comp.get_children():
+		offset_component(child, offset)
+
 func comp_has_node(comp: RationalComponent) -> bool:
 	return has_node(comp_get_node_name(comp))
 
@@ -309,10 +397,6 @@ func comp_get_node_name(comp: RationalComponent) -> String:
 
 func comp_get_graph_node(comp: RationalComponent) -> RationalGraphNode:
 	return get_node_or_null(comp_get_node_name(comp))
-
-
-func close_active_root() -> void:
-	active_root = null
 
 
 func clear() -> void:
@@ -337,62 +421,50 @@ func set_active_root(val: RootData) -> void:
 			active_root.closed.connect(close_active_root)
 		
 		update_graph()
-		restore_graph_state.call_deferred(graph_states.get(active_root, {}))
 
 
-func place_loose_nodes(components: Array[RationalComponent]) -> void:
-	var node_offset: Vector2 = get_graph_rect().end * Vector2(float(horizontal_layout), float(!horizontal_layout))
-	var temp_root: Composite = Sequence.new()
-	for comp: RationalComponent in components:
-		temp_root.add_child(comp)
+
+func close_active_root() -> void:
+	active_root = null
+
+
+func get_graph_state() -> Dictionary:
+	var node_data: Dictionary
+	for node: RationalGraphNode in get_graph_nodes():
+		node_data[node.component] = {
+			position_offset = node.position_offset,
+			comp = node.component,
+			}
 	
-	var node: RationalGraphNode = add_node(temp_root)
-	
-	var tree_node:= create_tree_node(temp_root)
-	tree_node.update_positions(horizontal_layout)
-	place_nodes(tree_node)
-	delete_node(node.name)
-	
-	for comp: RationalComponent in components:
-		offset_component(comp, node_offset)
-
-
-func offset_component(comp: RationalComponent, offset: Vector2) -> void:
-	comp_get_graph_node(comp).position_offset += offset
-	for child in comp.get_children():
-		offset_component(child, offset)
+	return {
+		zoom = zoom,
+		scroll_offset = scroll_offset,
+		horizontal = horizontal_layout,
+		orphans = get_orphan_components(),
+		nodes = node_data,
+	}
 
 
 func restore_graph_state(state: Dictionary) -> void:
 	if state.is_empty() or restoring_state: return
+	
 	restoring_state = true
+	
 	var is_different_layout: bool = state.get("horizontal", !horizontal_layout) != horizontal_layout
-	
-
-	var rect:= get_graph_rect()
-	
-	var orphans: Array[RationalComponent]
-	for dict: Dictionary in state.get("nodes", {}).values():
-		if dict.has_parent or comp_has_node(dict.comp): continue
-		orphans.push_back(dict.comp)
-	
-	
-	if is_different_layout:
-		place_loose_nodes(orphans)
-	
-	else:
-		for comp: RationalComponent in orphans:
-			add_node(comp)
-		
-		for node: RationalGraphNode in get_graph_nodes():
-			node.position_offset = state.get("nodes", {}).get(node.component, {}).get("position_offset", node.position_offset)
-		
 	
 	zoom = state.get("zoom", 1.0)
 	scroll_offset = state.get("scroll_offset", Vector2.ZERO)
 	
+	for node: RationalGraphNode in get_graph_nodes():
+		node.position_offset = state.get("nodes", {}).get(node.component, {}).get("position_offset", node.position_offset)
+	
 	restoring_state = false
 
+func restore_root_state() -> void:
+	restore_graph_state(graph_states.get(active_root, {}))
+
+func can_restore_state() -> bool:
+	return active_root and graph_states.has(active_root)
 
 func get_elbow_connection_line(from_position: Vector2, to_position: Vector2) -> PackedVector2Array:
 	var points: PackedVector2Array
@@ -422,29 +494,28 @@ func get_graph_nodes() -> Array[RationalGraphNode]:
 func get_node_position(node: GraphNode) -> Vector2:
 	return node.position_offset * zoom - scroll_offset
 
-func get_graph_state() -> Dictionary:
-	
-	var state: Dictionary = {
-		zoom = zoom,
-		scroll_offset = scroll_offset,
-		horizontal = horizontal_layout,
-		#preview = preview,
-		nodes = {},
-	}
-	
+
+func get_orphan_nodes() -> Array[RationalGraphNode]:
+	var result: Array[RationalGraphNode]
 	for node: RationalGraphNode in get_graph_nodes():
-		state.nodes[node.component] = {
-			position_offset = node.position_offset,
-			comp = node.component,
-			has_parent = node_is_parented(node.name),
-		}
-	
-	return state
+		if node.component == get_root_component() or node_is_parented(node.name): continue
+		result.push_back(node)
+	return result
 
 
-func _on_root_reloaded() -> void:
-	update_graph()
+func get_orphan_components() -> Array[RationalComponent]:
+	var result: Array[RationalComponent]
+	for node: RationalGraphNode in get_orphan_nodes():
+		if get_root_component() and get_root_component().has_child(node.component, true): continue
+		result.push_back(node.component)
+	return result
 
+func get_active_root_orphans() -> Array[RationalComponent]:
+	return graph_states.get(active_root, {}).get("orphans", [])
+
+func save_current_orphans() -> void:
+	if not active_root: return
+	graph_states.get_or_add(active_root, {})["orphans"] = get_orphan_components()
 
 func get_port_range_squared() -> float:
 	return (PORT_RANGE/ zoom)  ** 2
@@ -483,7 +554,10 @@ func _gui_input(event: InputEvent) -> void:
 	
 	if event is InputEventMouseButton:
 		if not is_dragging_connection and event.button_index == MOUSE_BUTTON_RIGHT:
+			accept_event()
+			
 			if is_moving_node:
+				cancel_drag()
 				return
 			
 			if disconnect_hovered_port():
@@ -494,26 +568,10 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		match event.keycode:
 			KEY_R:
-				print("RootData: %s" % active_root, )
-				if not active_root: return
-				var node: RationalGraphNode = comp_get_graph_node(active_root.root)
-				var path:= node.component.resource_path if node and node.component else ""
-				print("Root Graph Node: %s" % (node))
-				print("Root Graph Node Component: %s" % (node.component))
-				print("Component Path: '%s'" % path)
-				
+				printt(Rect2(scroll_offset/zoom, size/zoom))
 			KEY_T:
 				active_root.root.print_tree_pretty()
-				#active_root.sync_path()
-
-func _unhandled_input(event: InputEvent) -> void:
-	return
-	#if not event.is_pressed() or event.is_echo():
-		#return
-	
-	#if event is InputEventMouseButton:
-		#if event.button_index == MOUSE_BUTTON_RIGHT:
-			#open_create_popup(get_viewport().position + Vector2i(event.global_position))
+				
 
 
 func _draw() -> void:
@@ -543,28 +601,56 @@ func _draw() -> void:
 		draw_polyline(line, LINE_COLOR, line_width, true)
 	
 	if is_dragging_connection:
-		var line := get_elbow_connection_line(connection_start_position, get_local_mouse_position())
-		draw_polyline(line, CONNECTION_LINE_COLOR, line_width, true)
-		
+		draw_polyline(get_elbow_connection_line(connection_start_position, get_local_mouse_position()), CONNECTION_LINE_COLOR, line_width, true)
+	
 	if is_moving_node:
-		#const OUTLINE_SIZE: int = 3
-		#const FONT_SIZE: int = 24
-		#const INDEX_COLOR: Color = Color.CORAL
-		for node: RationalGraphNode in get_selected_nodes():
-			#var font: Font = node.get_theme_font(&"title_font")
-			#var font_size: int = FONT_SIZE * zoom
-			#var text_offset: Vector2 = Vector2(0.0, -font.get_height(font_size))
-			
-			for child: RationalGraphNode in node_get_connected_children(node_get_parent(node.name)):
-				#var txt: String = str(node_get_index(child))
-				child.is_drawing_index = true
-				child.current_index = node_get_index(child)
-				
-				#var pos: Vector2 = child.position + child.get_custom_input_port_position(horizontal_layout) * zoom + text_offset
-				#font.draw_string(child.get_canvas_item(), Vector2(0, child.size.y), txt, 0, -1, FONT_SIZE, INDEX_COLOR)
-				#draw_string_outline(font, pos, txt, 0, -1, font_size, OUTLINE_SIZE, Color.BLACK,)
-				#draw_string(font, pos, txt, 0, -1, font_size, Color.CORAL,)
-				
+		update_dragged_nodes()
+
+
+func update_dragged_nodes() -> void:
+	for node: RationalGraphNode in get_selected_nodes():
+		var children: Array[RationalGraphNode] = node_get_connected_children(node_get_parent(node.name))
+		
+		if children.size() < 2:
+			continue
+		
+		for child: RationalGraphNode in children:
+			child.is_drawing_index = true
+			child.current_index = node_get_index(child)
+
+
+func cancel_drag() -> void:
+	if not is_moving_node: return
+	reset_dragged_nodes = true
+	var release_event:= InputEventMouseButton.new()
+	release_event.button_index = MOUSE_BUTTON_LEFT
+	get_viewport().push_input(release_event)
+
+func _on_begin_node_move() -> void:
+	is_moving_node = true
+
+
+func _on_end_node_move() -> void:
+	is_moving_node = false
+	for node: RationalGraphNode in get_graph_nodes():
+		node.is_drawing_index = false
+	queue_redraw.call_deferred()
+	reset_dragged_nodes = false
+
+
+func _on_node_selection_changed(node: Node) -> void:
+	if block_selection_signal: return
+	selected_changed.emit(get_selected_components())
+
+
+func _on_node_dragged(from: Vector2, to: Vector2, node: RationalGraphNode) -> void:
+	print("%s dragged %v => %v" % [node.component.resource_name, from, to])
+	
+	if reset_dragged_nodes:
+		node.position_offset = from
+		return
+	
+	update_component_index(node)
 
 
 func _on_component_children_changed(node: RationalGraphNode) -> void:
@@ -574,6 +660,11 @@ func _get_connection_line(from_position: Vector2, to_position: Vector2) -> Packe
 	const VECS: PackedVector2Array = [Vector2(-9999999, -9999999), Vector2(-9999999, -9999999)]
 	return VECS
 
+func has_selected_node() -> bool:
+	for node: RationalGraphNode in get_graph_nodes():
+		if node.selected: 
+			return true
+	return false
 
 func get_selected_nodes() -> Array[RationalGraphNode]:
 	var result: Array[RationalGraphNode]
@@ -589,22 +680,18 @@ func get_selected_components() -> Array[RationalComponent]:
 		result.push_back(node.component)
 	return result
 
+func nodes_get_rect(nodes: Array[RationalGraphNode]) -> Rect2:
+	if nodes.is_empty(): 
+		return Rect2()
+	
+	var rect: Rect2 = Rect2(nodes.front().position_offset, nodes.front().size)
+	for nod: GraphNode in nodes:
+		rect = rect.merge(Rect2(nod.position_offset, nod.size))
+	return rect
 
 func get_graph_rect() -> Rect2:
-	var rect: Rect2 = Rect2()
-	for node: RationalGraphNode in get_graph_nodes():
-		
-		if not rect:
-			rect.position = node.position_offset
-			rect.size = node.size
-			continue
-		
-		rect.position.x = minf(node.position_offset.x, rect.position.x)
-		rect.position.y = minf(node.position_offset.y, rect.position.y)
-		rect.end.x = maxf(node.position_offset.x + node.size.x, rect.end.x)
-		rect.end.y = maxf(node.position_offset.y + node.size.y, rect.end.y)
-	
-	return rect
+	return nodes_get_rect(get_graph_nodes())
+
 
 
 func _on_tree_display_selected_items_changed(items: Array[RationalComponent]) -> void:
@@ -643,6 +730,7 @@ func disconnect_hovered_port() -> bool:
 			node.component.remove_child(child.component)
 	
 	return true
+
 
 func get_root_component() -> RationalComponent:
 	return active_root.root if active_root else null

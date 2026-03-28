@@ -72,6 +72,14 @@ corner_radius_bottom_left = 2
 corner_detail = 2
 anti_aliasing = false
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j2q5q"]
+content_margin_left = 9.0
+content_margin_top = 9.0
+content_margin_right = 9.0
+content_margin_bottom = 9.0
+bg_color = Color(0.161, 0.161, 0.161, 1)
+corner_detail = 5
+
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_catft"]
 content_margin_left = 6.0
 content_margin_top = 0.0
@@ -368,6 +376,7 @@ EditorProperty/styles/bg = SubResource("StyleBoxEmpty_6rlbg")
 EditorProperty/styles/bg_group_note = SubResource("StyleBoxFlat_yq3id")
 EditorProperty/styles/bg_selected = SubResource("StyleBoxFlat_jmhs4")
 EditorProperty/styles/child_bg = SubResource("StyleBoxFlat_pd8dw")
+EditorStyles/styles/PanelForeground = SubResource("StyleBoxFlat_j2q5q")
 EditorStyles/styles/ScriptEditorPanel = SubResource("StyleBoxEmpty_catft")
 GraphNode/styles/panel = SubResource("StyleBoxEmpty_s7bc0")
 GraphNode/styles/panel_selected = SubResource("StyleBoxFlat_5nvyd")

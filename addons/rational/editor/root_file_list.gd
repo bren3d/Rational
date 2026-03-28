@@ -6,7 +6,9 @@ const Cache:= preload("../data/cache.gd")
 
 const META_PATH: StringName = &"path"
 
-enum {COMMAND_SAVE, COMMAND_SAVE_AS, COMMAND_CLOSE, COMMAND_CLOSE_OTHERS, COMMAND_CLOSE_BELOW, COMMAND_CLOSE_ALL, COMMAND_SET_PATH = COMMAND_CLOSE_ALL + 2, COMMAND_MAX}
+enum {COMMAND_INVALID = -1, COMMAND_SAVE, COMMAND_SAVE_AS, COMMAND_RENAME, COMMAND_CLOSE, COMMAND_CLOSE_OTHERS, COMMAND_CLOSE_BELOW, COMMAND_CLOSE_ALL, 
+COMMAND_SEP1,
+COMMAND_SET_PATH, COMMAND_MAX}
 
 @export var filter_line_edit: LineEdit
 
@@ -25,8 +27,9 @@ func _ready() -> void:
 	
 	shortcuts.resize(COMMAND_MAX)
 	var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
-	shortcuts[COMMAND_SAVE] = editor_settings.get_shortcut("scene_tree/save")
-	shortcuts[COMMAND_SAVE_AS] = editor_settings.get_shortcut("scene_tree/save_as")
+	shortcuts[COMMAND_SAVE] = editor_settings.get_shortcut("script_editor/save")
+	shortcuts[COMMAND_SAVE_AS] = editor_settings.get_shortcut("script_editor/save_as")
+	shortcuts[COMMAND_RENAME] = editor_settings.get_shortcut("scene_tree/rename")
 	shortcuts[COMMAND_CLOSE] = editor_settings.get_shortcut("script_editor/close_file")
 	shortcuts[COMMAND_CLOSE_OTHERS] = editor_settings.get_shortcut("script_editor/close_other_tabs")
 	shortcuts[COMMAND_CLOSE_BELOW] = editor_settings.get_shortcut("script_editor/close_tabs_below")
@@ -42,6 +45,7 @@ func _ready() -> void:
 	add_root_button.pressed.connect(_on_add_root_button_pressed)
 	
 	item_selected.connect(_on_item_selected)
+	item_edited.connect(_on_item_edited)
 	
 	cache.data_added.connect(add_data)
 	cache.data_erased.connect(erase_data)
@@ -202,10 +206,18 @@ func set_cache(val: Cache) -> void:
 
 
 func save_item(item: TreeItem) -> void:
+	var data: RootData = item_get_data(item)
+	if not data.can_save():
+		pass
 	item_get_data(item).save()
 
 func save_item_as(item: TreeItem) -> void:
 	cache.save_data_as(item_get_data(item))
+
+func _on_item_edited() -> void:
+	var item: TreeItem = get_selected()
+	if item:
+		item_get_data(item).rename(item.get_text(0))
 
 func shortcut_get_accel(command_idx: int) -> Key:
 	if shortcuts[command_idx]:
@@ -219,12 +231,33 @@ func init_popup() -> void:
 	popup.clear()
 	popup.add_item("Save", COMMAND_SAVE, shortcut_get_accel(COMMAND_SAVE))
 	popup.add_item("Save As...", COMMAND_SAVE_AS, shortcut_get_accel(COMMAND_SAVE_AS))
+	popup.add_item("Rename", COMMAND_RENAME, shortcut_get_accel(COMMAND_RENAME))
 	popup.add_item("Close", COMMAND_CLOSE, shortcut_get_accel(COMMAND_CLOSE))
 	popup.add_item("Close Other Tabs", COMMAND_CLOSE_OTHERS, shortcut_get_accel(COMMAND_CLOSE_OTHERS))
 	popup.add_item("Close Tabs Below", COMMAND_CLOSE_BELOW, shortcut_get_accel(COMMAND_CLOSE_BELOW))
 	popup.add_item("Close All", COMMAND_CLOSE_ALL, shortcut_get_accel(COMMAND_CLOSE_ALL))
-	popup.add_separator()
+	popup.add_separator("", COMMAND_SEP1)
 	popup.add_item("Change Path", COMMAND_CLOSE_ALL, shortcut_get_accel(COMMAND_CLOSE_ALL))
+
+func execute_command(command_index: int = COMMAND_INVALID) -> void:
+	var item: TreeItem = get_selected()
+	match command_index:
+		COMMAND_SAVE when item:
+			save_item(item)
+		COMMAND_SAVE_AS when item:
+			save_item_as(item)
+		COMMAND_RENAME when item:
+			edit_selected(true)
+		COMMAND_CLOSE when item:
+			close_item(item)
+		COMMAND_CLOSE_OTHERS when item:
+			close_items_except([item])
+		COMMAND_CLOSE_BELOW when item:
+			close_items_except(get_root().get_chilren().slice(0, item.get_index()))
+		COMMAND_CLOSE_ALL:
+			close_items_except()
+		COMMAND_SET_PATH when item:
+			prompt_change_tree_path(item)
 
 func _gui_input(event: InputEvent) -> void:
 	if not event.is_pressed() or event.is_echo(): return
@@ -242,24 +275,17 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 			popup.position = get_viewport().position + Vector2i(event.global_position)
 			popup.popup()
-			
+	
+	
+	for i: int in shortcuts.size():
+		if shortcuts[i] and shortcuts[i].matches_event(event):
+			execute_command(i)
+			accept_event()
+			break
+
 
 func _on_popup_menu_index_pressed(index: int) -> void:
-	match index:
-		COMMAND_SAVE:
-			save_item(get_selected())
-		COMMAND_SAVE_AS:
-			save_item_as(get_selected())
-		COMMAND_CLOSE:
-			close_item(get_selected())
-		COMMAND_CLOSE_OTHERS:
-			close_items_except([get_selected()])
-		COMMAND_CLOSE_BELOW:
-			close_items_except(get_root().get_chilren().slice(0, get_selected().get_index()))
-		COMMAND_CLOSE_ALL:
-			close_items_except()
-		COMMAND_SET_PATH:
-			prompt_change_tree_path(get_selected())
+	execute_command(index)
 
 func prompt_change_tree_path(item: TreeItem) -> void:
 	DisplayServer.dialog_input_text("Set Tree Path", "", item_get_path(item), parse_tree_path_response)

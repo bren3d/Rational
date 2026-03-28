@@ -1,20 +1,14 @@
 @tool
 extends EditorScript
 
-const RES_PATH:= "res://TestScene/RationalObjects/deco.tres"
+const Util:= preload("res://addons/rational/util.gd")
+
 const RATIONAL_SCRIPT_PATH:= "res://addons/rational/components/rational_component.gd"
 const Cache := preload("res://addons/rational/data/cache.gd")
 const Main:= preload("res://addons/rational/editor/main.gd")
 const TreeDisplay:= preload("res://addons/rational/editor/tree_display.gd")
+const GraphEditor = preload("res://addons/rational/editor/graph_edit.gd")
 
-const Util:= preload("res://addons/rational/util.gd")
-
-#var data: Dictionary = {key = "key"}
-
-var tw: Tween
-@export var path_list: PackedStringArray
-#const Util := preload("res://addons/rational/util.gd")
-#const RationalPicker = preload("res://addons/rational/plugins/inspector/rational_property.gd")
 
 func _run() -> void:
 	print("Running...")
@@ -27,23 +21,17 @@ func _run() -> void:
 	
 	var main: Main = Engine.get_meta(&"Main")
 	var tree_display: TreeDisplay = main.tree_display
+	var graph_edit: GraphEditor = main.graph_edit
 	var create_popup: Window = main.graph_edit.popup
+	
+	var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
+	
+	var shortcuts: String = "\n".join(editor_settings.get_shortcut_list())
+	#
+	#graph_edit.init_shortcuts()
+	
+	printt(EditorInterface.get_editor_main_screen().get_children())
 
-
-
-func _on_texture_changed(tex: Texture2D) -> void:
-	print("texture changed: %s" % tex)
-
-
-func shortcut_get_accel(shortcut_path: String) -> Key:
-	var shortcut: Shortcut = EditorInterface.get_editor_settings().get_shortcut(shortcut_path)
-	if shortcut:
-		for event in shortcut.events:
-			if event is InputEventKey:
-				return event.get_keycode_with_modifiers()
-	else:
-		print("No shortcut found!")
-	return KEY_NONE
 
 func print_cache(c: Cache) -> void:
 	printt("Paths: ", " | ".join(c.path_list))
@@ -54,24 +42,6 @@ func print_cache(c: Cache) -> void:
 
 
 
-func populate_class_icons() -> Dictionary[StringName, Texture2D]:
-	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
-	var class_icons: Dictionary[StringName, Texture2D]
-	
-	for dict: Dictionary in class_list:
-		if dict.class != &"RationalComponent": continue
-		class_icons[&"RationalComponent"] = load(dict.icon)
-	
-	var base_classes: Array[StringName] = [&"RationalComponent"]
-	while not base_classes.is_empty():
-		var new_bases: Array[StringName] = []
-		for dict: Dictionary in class_list:
-			if dict.base in base_classes:
-				new_bases.push_back(dict.class)
-				class_icons[dict.class] = load(dict.icon) if dict.icon else class_icons[dict.base]
-		base_classes = new_bases
-	
-	return class_icons
 
 func get_class_files(type_name: StringName = &"", dir: EditorFileSystemDirectory = EditorInterface.get_resource_filesystem().get_filesystem()) -> PackedStringArray:
 	var files: PackedStringArray

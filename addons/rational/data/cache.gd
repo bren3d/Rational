@@ -186,11 +186,10 @@ func load() -> void:
 
 func save_data_as(data: RootData) -> void:
 	if not data: return
-	
-	request_save_as.emit(data.root.duplicate(true))
-
-func save_data(data: RootData) -> void:
-	pass
+	#if data.path:
+		#data = data.duplicate(false)
+		#data.data_saved.connect(add_data, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_ONE_SHOT)
+	request_save_as.emit(data)
 
 
 func load_root_data(path: String) -> RootData:

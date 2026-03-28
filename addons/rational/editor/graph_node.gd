@@ -8,31 +8,25 @@ const Util := preload("../util.gd")
 const PORT_RADIUS: float = 7.0
 const RADIUS_SIZE_INCREASE: float = 5.0
 
-#@export_tool_button("djkf", "Missing")
 
 signal component_children_changed
-#signal component_tree_changed
 
 var component: RationalComponent: set = set_component
-
 
 @export var title_text: String:
 	set(value):
 		title_text = value
-		if title_label:
-			title_label.text = value
+		title_label.text = value
 
 @export var text: String:
 	set(value):
 		text = value
-		if label:
-			label.text = " " if text.is_empty() else text
+		label.text = " " if text.is_empty() else text
 
 @export var icon: Texture2D:
 	set(value):
 		icon = value
-		if icon_rect:
-			icon_rect.texture = value
+		icon_rect.texture = value
 
 
 var layout_size: float:
@@ -45,7 +39,7 @@ var label: Label
 var titlebar_hbox: HBoxContainer
 
 var frames: RefCounted
-var horizontal: bool = false
+var horizontal: bool = false : set = set_horizontal
 var panels_tween: Tween
 
 var is_left_port_hovered: bool = false:
@@ -170,18 +164,21 @@ func update_display() -> void:
 	title_text = component.resource_name if component else ""
 	icon = Util.comp_get_icon(component) if component else null
 	name = str(component.get_instance_id())
+	tooltip_text = "ID: %s" % component.get_instance_id() if component else "INVALID"
 
 
 func set_component(val: RationalComponent) -> void:
 	if component:
 		component.changed.disconnect(_on_component_changed)
-		
+		component.children_changed.disconnect(component_children_changed.emit)
+	
 	component = val
 	
 	update_display()
 	
 	if component:
 		component.changed.connect(_on_component_changed)
+		component.children_changed.connect(component_children_changed.emit)
 
 
 func _set_stylebox_overrides(panel_stylebox: StyleBox, titlebar_stylebox: StyleBox) -> void:
@@ -232,5 +229,9 @@ func _draw() -> void:
 	
 	draw_string_outline(font, pos, txt, 0, -1, font_size, 4)
 	draw_string(font, pos, txt, 0, -1, font_size)
-	
-	
+
+#func _get_tooltip(at_position: Vector2) -> String:
+	#return "ID: %s" % component.get_instance_id() if component else "INVALID"
+
+func set_horizontal(val: bool) -> void:
+	horizontal = val

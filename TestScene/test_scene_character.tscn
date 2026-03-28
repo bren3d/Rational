@@ -14,9 +14,7 @@
 [ext_resource type="Script" uid="uid://davp5u2xw823n" path="res://addons/rational/components/rational_tree.gd" id="12_m8cgi"]
 [ext_resource type="Script" uid="uid://6ug5fa63l34w" path="res://addons/rational/components/blackboard.gd" id="13_6m14f"]
 [ext_resource type="Texture2D" uid="uid://c6xt30y0jeyie" path="res://addons/rational/icons/Debug.svg" id="14_4x1kh"]
-[ext_resource type="Script" uid="uid://dslcu3blcrgyx" path="res://addons/rational/components/decorators/succeeder.gd" id="14_8sece"]
 [ext_resource type="Script" uid="uid://bf5yfufeku4t4" path="res://addons/rational/components/rational_component.gd" id="14_s7iw1"]
-[ext_resource type="Script" uid="uid://lp2l3w30rxd3" path="res://addons/rational/components/decorators/failer.gd" id="15_leic3"]
 [ext_resource type="Script" uid="uid://b084a27qrwlfn" path="res://addons/rational/components/sequence.gd" id="16_f0c8p"]
 [ext_resource type="Script" uid="uid://bktdpfgt2g20l" path="res://addons/rational/components/condition.gd" id="17_8sece"]
 [ext_resource type="Texture2D" uid="uid://ya105wb6fqmt" path="res://addons/rational/icons/EditorHandle.svg" id="18_t2hwn"]
@@ -78,22 +76,9 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="Resource" id="Resource_8sece"]
-resource_name = "Succeeder"
-script = ExtResource("14_8sece")
-
-[sub_resource type="Resource" id="Resource_leic3"]
-resource_name = "Failer"
-script = ExtResource("15_leic3")
-
-[sub_resource type="Resource" id="Resource_mg37k"]
-resource_name = "Sequence"
-script = ExtResource("16_f0c8p")
-
 [sub_resource type="Resource" id="Resource_q1v5c"]
 resource_name = "Sequence2"
 script = ExtResource("16_f0c8p")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_8sece"), SubResource("Resource_leic3"), SubResource("Resource_mg37k")])
 metadata/_custom_type_script = "uid://b084a27qrwlfn"
 metadata/_path_data = {
 &"path": NodePath("Actor/RationalTree"),

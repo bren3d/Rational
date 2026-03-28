@@ -73,6 +73,13 @@ func set_resource_path(to_path: String) -> void:
 func get_root_class() -> String:
 	return root.get_script().get_global_name() if root else ""
 
+
+func rename(to_name: String) -> void:
+	if to_name == name: return
+	name = to_name
+	set_unsaved_changes(true)
+
+
 func set_root(val: RationalComponent) -> void:
 		if root == val: return
 		
@@ -268,6 +275,9 @@ static func load_path(path: String) -> RationalComponent:
 					return root
 	
 	return null
+
+func duplicate(deep: bool = false) -> RootData:
+	return RootData.new(root.duplicate(deep))
 
 func _to_string() -> String:
 	return "RootData: %s | Path %s" % [root, path]
