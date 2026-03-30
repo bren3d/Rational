@@ -1,15 +1,16 @@
 @tool
 extends GraphNode
 
-
 const Util := preload("../util.gd")
 
-
+#@export_tool_button("DFJ", "NewRoot")
 const PORT_RADIUS: float = 7.0
 const RADIUS_SIZE_INCREASE: float = 5.0
 
+enum {ITEM_RENAME, ITEM_CHANGE_TYPE, ITEM_SEP1, ITEM_MAKE_ROOT, ITEM_COPY, ITEM_DUPLICATE}
 
 signal component_children_changed
+signal request_selection
 
 var component: RationalComponent: set = set_component
 
@@ -17,6 +18,7 @@ var component: RationalComponent: set = set_component
 	set(value):
 		title_text = value
 		title_label.text = value
+		line_edit.text = value
 
 @export var text: String:
 	set(value):
@@ -27,6 +29,7 @@ var component: RationalComponent: set = set_component
 	set(value):
 		icon = value
 		icon_rect.texture = value
+		#line_edit.right_icon = value
 
 
 var layout_size: float:
@@ -35,8 +38,10 @@ var layout_size: float:
 
 var icon_rect: TextureRect
 var title_label: Label
+var line_edit: LineEdit
 var label: Label
 var titlebar_hbox: HBoxContainer
+var menu: PopupMenu
 
 var frames: RefCounted
 var horizontal: bool = false : set = set_horizontal
@@ -66,6 +71,7 @@ var current_index: int = 0:
 		current_index = val
 		queue_redraw()
 
+var shortcuts: Dictionary[Shortcut, Callable]
 
 func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	self.frames = frames
@@ -78,42 +84,151 @@ func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	add_child(top_port)
 
 	icon_rect = TextureRect.new()
-	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	icon_rect.custom_minimum_size = Vector2(16.0, 16.0) * EditorInterface.get_editor_scale()
 	icon_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	icon_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	titlebar_hbox = get_titlebar_hbox()
+	titlebar_hbox.get_child(0).queue_free()
 	
 	title_label = Label.new()
 	title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_label.hide()
 	titlebar_hbox.add_child(title_label)
+	
+	line_edit = LineEdit.new()
+	line_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line_edit.flat = true
+	line_edit.editable = false
+	line_edit.selecting_enabled = false
+	line_edit.select_all_on_focus = true
+	line_edit.expand_to_text_length = true
+	line_edit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	#line_edit.focus_mode = Control.FOCUS_NONE
+	#line_edit.context_menu_enabled = false
+	#line_edit.emoji_menu_enabled = false
+	#line_edit.shortcut_keys_enabled = false
+	line_edit.max_length = RationalComponent.NAME_MAX_LENGTH
+	line_edit.add_theme_color_override("font_color", Color.WHITE)
+	line_edit.add_theme_color_override("font_uneditable_color", Color.WHITE)
+	
+	var empty_stylebox: StyleBoxEmpty = StyleBoxEmpty.new()
+	line_edit.add_theme_stylebox_override("normal", empty_stylebox)
+	line_edit.add_theme_stylebox_override("read_only", empty_stylebox)
+	#line_edit.add_theme_stylebox_override("read_only", Util.get_stylebox(&"normal", &"LineEdit"))
+	#line_edit.theme_type_variation = &"TreeLineEdit"
+	titlebar_hbox.add_child(line_edit)
+	line_edit.editing_toggled.connect(_on_line_edit_editing_toggled)
+	#line_edit.text_submitted.connect(_on_line_edit_text_submitted)
+	^"theme_override_styles/read_only"
+	
+	
+	titlebar_hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
+	titlebar_hbox.add_child(icon_rect)
 	
 	label = Label.new()
 	label.text = " " if text.is_empty() else text
 	add_child(label)
+	
+	#scaling_menus = true
+	menu = PopupMenu.new()
+	add_child(menu)
+
+		
+func rename() -> void:
+	set_editable(true)
+	line_edit.edit()
+	line_edit.select_all()
+
+func set_editable(editable: bool) -> void:
+	line_edit.selecting_enabled = editable
+	line_edit.editable = editable
+	line_edit.mouse_filter = MOUSE_FILTER_IGNORE * int(not editable)
+	line_edit.focus_mode = Control.FOCUS_ALL * int(editable)
+
+
+func set_component_name(new_name: String) -> void:
+	if not component or component.resource_name == new_name: return
+	component.resource_name = new_name
+
+func _on_line_edit_editing_toggled(is_editing: bool) -> void:
+	print("LineEdit Toggled: %s" % is_editing)
+	if is_editing: return
+	set_editable(false)
+	set_component_name(line_edit.text)
+	reset_size()
 
 
 func _ready() -> void:
+	Util.add_menu_item(menu, "Rename", &"Rename", &"rename", null, ITEM_RENAME)
+	shortcuts[Util.get_shortcut(&"rename")] = rename
+	
+	#menu.add_icon_item(get_theme_icon(&"Rename", &"EditorIcons"), "Rename", ITEM_RENAME, )
+	#menu.set_item_shortcut(menu.item_count -1, Util.get_shortcut("rename"))
+	
+	menu.add_icon_item(get_theme_icon(&"RotateLeft", &"EditorIcons"), "Change Type...", ITEM_CHANGE_TYPE)
+	menu.set_item_shortcut(menu.item_count -1, Util.get_shortcut("change_type"))
+	
+	menu.add_separator("")
+	menu.add_icon_item(get_theme_icon(&"NewRoot", &"EditorIcons"), "Save as Root", ITEM_MAKE_ROOT)
+	menu.set_item_shortcut(menu.item_count -1, Util.get_shortcut("change_type"))
+	
+	menu.id_pressed.connect(_on_menu_pressed)
+	
 	add_theme_color_override("close_color", Color.TRANSPARENT)
 	add_theme_icon_override("close", ImageTexture.new())
 	
-	titlebar_hbox.get_child(0).queue_free()
-	titlebar_hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
-	titlebar_hbox.add_child(icon_rect)
+	
 	
 	title_label.add_theme_color_override("font_color", Color.WHITE)
-	var title_font: Font = get_theme_font("title_font").duplicate()
-	if title_font is FontVariation:
-		title_font.variation_embolden = 1
-	elif title_font is FontFile:
-		title_font.font_weight = 600
+	var title_font: Font = Util.get_font(&"main", &"EditorFonts").duplicate()
+	#if title_font is FontVariation:
+		#title_font.variation_embolden = 1.0
+	#elif title_font is FontFile:
+		#title_font.font_weight = 600
 	title_label.add_theme_font_override("font", title_font)
-
+	line_edit.add_theme_font_override("font", title_font)
+	
+	line_edit.text = title_text
 	title_label.text = title_text
 	
 	minimum_size_changed.connect(_on_size_changed)
 	_on_size_changed.call_deferred()
+
+
+func _on_menu_pressed(id: int) -> void:
+	print("Menu Item Pressed: %s" % menu.get_item_text(id))
+	match id:
+		ITEM_RENAME:
+			rename()
+	
+
+func _gui_input(event: InputEvent) -> void:
+	if not event.is_pressed() or event.is_echo(): return
+	
+	if event is InputEventMouseButton:
+		match event.button_index:
+			MOUSE_BUTTON_LEFT:
+				if not event.double_click or not titlebar_hbox.get_rect().has_point(event.position): return
+				accept_event()
+				rename()
+			
+			MOUSE_BUTTON_RIGHT when not MOUSE_BUTTON_MASK_RIGHT & event.button_mask:
+				accept_event()
+				selected = true
+				if not event.shift_pressed and not event.ctrl_pressed:
+					request_selection.emit()
+				menu.position = get_viewport().position + Vector2i(event.global_position)
+				menu.popup()
+
+func _shortcut_input(event: InputEvent) -> void:
+	if not event.is_pressed() or event.is_echo(): return
+	for sc in shortcuts:
+		if sc.matches_event(event):
+			accept_event()
+			shortcuts[sc].call()
 
 
 func _draw_port(slot_index: int, port_position: Vector2i, left: bool, color: Color) -> void:
@@ -122,10 +237,19 @@ func _draw_port(slot_index: int, port_position: Vector2i, left: bool, color: Col
 	const ANGLE_UP: float = PI/2.0
 	const ANGLE_DOWN: float = 3.0/2.0 * PI
 	const ANGLE_OFFSET: float = 0.2
-	
+	var tex: Texture2D = get_theme_icon(&"GuiGraphNodePort", &"EditorIcons")
+	var sz:= tex.get_size()
+	#var rect: Rect2 = Rect2(- sz.x / 2.0 * float(), tex.get_size())
 	if horizontal:
 		if left and is_slot_enabled_left(0):
-			draw_arc(Vector2(0, size.y / 2), radius/2.0, ANGLE_DOWN + ANGLE_OFFSET, ANGLE_UP - ANGLE_OFFSET , POINT_COUNT, color, radius, true)
+			print(sz)
+			var src_rect: Rect2 = Rect2(0, 0, tex.get_width()/2.0, tex.get_height())
+			var start := Vector2(0, size.y/2.0) - tex.get_size()/2.0
+			var rect:= Rect2(start, src_rect.size)
+			#Rect2(0, size.y/2.0 - src_rect.size.y/2.0, 0, 0)
+			draw_texture_rect_region(tex, rect, src_rect, Color.REBECCA_PURPLE,)
+			#draw_circle(Vector2(0, size.y / 2), radius, color,)
+			#draw_arc(Vector2(0, size.y / 2), radius/2.0, ANGLE_DOWN + ANGLE_OFFSET, ANGLE_UP - ANGLE_OFFSET , POINT_COUNT, color, radius, true)
 		elif not left and is_slot_enabled_right(0):
 			draw_arc(Vector2(size.x, size.y / 2), radius/2.0, -ANGLE_UP - ANGLE_OFFSET, ANGLE_UP + ANGLE_OFFSET, POINT_COUNT, color, radius, true)
 	else:
@@ -162,9 +286,9 @@ func set_color(color: Color) -> void:
 
 func update_display() -> void:
 	title_text = component.resource_name if component else ""
-	icon = Util.comp_get_icon(component) if component else null
+	icon = Util.comp_get_icon(component)
 	name = str(component.get_instance_id())
-	tooltip_text = "ID: %s" % component.get_instance_id() if component else "INVALID"
+	tooltip_text = "ID: %s" % (component.get_instance_id() if component else "INVALID")
 
 
 func set_component(val: RationalComponent) -> void:
@@ -221,8 +345,6 @@ func _draw() -> void:
 	if not is_drawing_index: return
 	var font: Font = title_label.get_theme_font(&"font")
 	var font_size: int = size.y / 1.3
-	#while font.get_height(font_size) < (size.y)*1.2:
-		#font_size += 1
 	var txt: String = str(current_index)
 	var text_size: Vector2 = font.get_string_size(txt, 0, -1, font_size)
 	var pos: Vector2 = Vector2((size.x - text_size.x) / 2.0, size.y - (size.y - text_size.y))

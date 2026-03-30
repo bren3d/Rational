@@ -1,5 +1,5 @@
 @tool
-@icon("../icons/Tree.svg")
+@icon("../icons/RationalTree.svg")
 class_name RationalTree extends Node
 
 signal tree_enabled
@@ -14,7 +14,6 @@ enum {SUCCESS, FAILURE, RUNNING}
 @export var actor: Node
 
 @export var blackboard: Blackboard
-
 
 @export var disabled: bool = true: set = set_disabled
 

@@ -1,8 +1,12 @@
 @tool
 extends PanelContainer
 
+const Util:= preload("../util.gd")
 const Cache:= preload("../data/cache.gd")
 #@export_tool_button("dkfjalk", "Back")
+
+signal request_floating
+
 
 @export var root_file_tree: Tree
 @export var tree_display: Tree
@@ -41,9 +45,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	make_floating_button.pressed.connect(_on_floating_button_pressed)
 	panel_collapse_button.pressed.connect(_on_panel_collapse_pressed)
-	
 	init_shortcuts()
 
 
@@ -110,7 +112,7 @@ func init_shortcuts() -> void:
 	var file_panel_shortcut: Shortcut = editor_settings.get_shortcut("script_editor/toggle_files_panel")
 	panel_collapse_button.tooltip_text = "Toggle panel" + (" (%s)" % file_panel_shortcut.get_as_text() if file_panel_shortcut else "")
 	shortcuts[file_panel_shortcut] = toggle_file_panel
-	shortcuts[editor_settings.get_shortcut("script_editor/make_floating")] = toggle_window
+	shortcuts[editor_settings.get_shortcut("script_editor/make_floating")] = make_floating_button.set_pressed.bind(true)
 	
 	shortcuts.erase(null)
 
@@ -129,100 +131,27 @@ func toggle_file_panel() -> void:
 	panel_collapse_button.icon = get_theme_icon(&"Back" if tree_panel.visible else &"Forward", &"EditorIcons") 
 
 
-
-func close() -> void:
-	floating_window.queue_free()
-	queue_free()
-
-
-func make_visible(is_visible: bool) -> void:
-	if is_window_open():
-		floating_window.grab_focus()
-		visible = true
-		#EditorInterface.set_main_screen_editor.call_deferred("Script")
-		
-	else:
-		visible = is_visible
-
-
-func open_window() -> void:
-	if EditorInterface.get_editor_main_screen() != get_parent():
-		return
-	
-	
-	floating_window = Window.new()
-	floating_window.title = "Rational"
-	floating_window.wrap_controls = true
-	floating_window.min_size = Vector2i(600, 350)
-	floating_window.size = size
-	floating_window.position = get_screen_position()
-	floating_window.transient = true
-	floating_window.close_requested.connect(close_window, CONNECT_ONE_SHOT)
-	
-	
-	var panel: Panel = Panel.new()
-	panel.add_theme_stylebox_override(&"panel", EditorInterface.get_editor_theme().get_stylebox(&"PanelForeground", &"EditorStyles"))
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	
-	EditorInterface.set_main_screen_editor("Script")
-	
-	
-	var margin := MarginContainer.new()
-	margin.theme_type_variation = &"MarginContainer4px"
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	
-	get_parent().remove_child(self)
-	margin.add_child(self)
-	panel.add_child(margin)
-	floating_window.add_child(panel)
-	
-	EditorInterface.get_base_control().add_child(floating_window)
-
-
-func close_window() -> void:
-	get_parent().remove_child(self)
-	EditorInterface.get_editor_main_screen().add_child(self)
-	EditorInterface.set_main_screen_editor("Rational")
-	floating_window.queue_free()
-
-func toggle_window() -> void:
-	if is_window_open():
-		close_window()
-	else:
-		open_window()
-	
-	make_floating_button.visible = not is_window_open()
-
-
-func is_window_open() -> bool:
-	return is_instance_valid(floating_window) and not floating_window.is_queued_for_deletion()
-
-func _exit_tree() -> void:
-	if is_window_open() and is_queued_for_deletion():
-		floating_window.queue_free()
-
-func _on_floating_button_pressed() -> void:
-	toggle_window()
-
 func _on_panel_collapse_pressed() -> void:
 	toggle_file_panel()
 
 func apply_theme() -> void:
 	panel_collapse_button.icon = get_theme_icon(&"Back" if tree_panel.visible else &"Forward", &"EditorIcons")
 	
-	var style_box: StyleBox = get_theme_stylebox(&"panel", &"PanelForeground")
-	if style_box:
-		style_box = style_box.duplicate()
+	if has_theme_stylebox(&"panel", &"PanelForeground"):
+		var style_box: StyleBox = get_theme_stylebox(&"panel", &"PanelForeground").duplicate()
 		style_box.set(&"corner_radius_bottom_left", 0)
 		style_box.set(&"corner_radius_top_left", 0)
 		style_box.set_content_margin_all(0)
 		collapse_panel_container.add_theme_stylebox_override(&"panel", style_box)
 	
+	
 	make_floating_button.icon = get_theme_icon(&"MakeFloating", &"EditorIcons")
 	var icon_width: int = make_floating_button.icon.get_width()
 
-	for line_edit: LineEdit in find_children("*", "LineEdit"):
-		line_edit.right_icon = get_theme_icon(&"Search", &"EditorIcons")
+	
+	%RootListFilter.right_icon = get_theme_icon(&"Search", &"EditorIcons")
+	%TreeFilter.right_icon = %RootListFilter.right_icon
+	#for line_edit: LineEdit in find_children("*", "LineEdit"):
 	
 	root_file_tree.add_theme_constant_override(&"icon_max_width", icon_width)
 	tree_display.add_theme_constant_override(&"icon_max_width", icon_width)

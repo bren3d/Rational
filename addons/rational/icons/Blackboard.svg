@@ -1,7 +1,1 @@
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Transformed by: SVG Repo Mixer Tools -->
-<svg width="64px" height="64px" viewBox="-2.4 -2.4 20.80 20.80" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff" stroke-width="0.784" transform="rotate(0)">
-<g id="SVGRepo_bgCarrier" stroke-width="0" transform="translate(0,0), scale(1)"/>
-<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#1b1613" stroke-width="0.064"/>
-<g id="SVGRepo_iconCarrier"> <path fill-rule="evenodd" clip-rule="evenodd" d="M16 2H0V14H16V2ZM5 10.5C6.38071 10.5 7.5 9.38071 7.5 8C7.5 6.61929 6.38071 5.5 5 5.5C3.61929 5.5 2.5 6.61929 2.5 8C2.5 9.38071 3.61929 10.5 5 10.5ZM10 5H14V7H10V5ZM14 9H10V11H14V9Z" fill="#1f0f00"/> </g>
-</svg>
+<svg width="16" height="16" fill="#fff"><path d="M1 3h14v10H1z"/><path fill="#000" d="M2 4h12v8H2z"/><circle r="1.25" cx="4" cy="6"/><path d="m3 8 2 2-2 1z"/><path d="M6 5.5h7M6 8h7m-7 2.5h7" stroke="#fff"/></svg>

@@ -1,9 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
-  <g id="SVGRepo_iconCarrier" transform="matrix(1.4999999999999998, 0, 0, 1.4999999999999998, 0.000013000001146679097, 0.000007000000756818281)">
-    <path d="M0 11H3L3 0H5L5 11H8V12L4 16L0 12V11Z" fill="#000000"/>
-    <path d="M16 10H10V8H16V10Z" fill="#000000"/>
-    <path d="M10 6H14V4H10V6Z" fill="#000000"/>
-    <path d="M12 2H10V0H12V2Z" fill="#000000"/>
-  </g>
-</svg>
+<svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path d="M0 16.5h4.5V0h3v16.5H12V18l-6 6-6-6zM24 15h-9v-3h9zm-9-6h6V6h-6zm3-6h-3V0h3z"/></svg>

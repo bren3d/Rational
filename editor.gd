@@ -1,14 +1,14 @@
 @tool
 extends EditorScript
 
-const Util:= preload("res://addons/rational/util.gd")
+const Util := preload("res://addons/rational/util.gd")
 
-const RATIONAL_SCRIPT_PATH:= "res://addons/rational/components/rational_component.gd"
+const RATIONAL_SCRIPT_PATH := "res://addons/rational/components/rational_component.gd"
 const Cache := preload("res://addons/rational/data/cache.gd")
-const Main:= preload("res://addons/rational/editor/main.gd")
-const TreeDisplay:= preload("res://addons/rational/editor/tree_display.gd")
-const GraphEditor = preload("res://addons/rational/editor/graph_edit.gd")
-
+const Main := preload("res://addons/rational/editor/main.gd")
+const TreeDisplay := preload("res://addons/rational/editor/tree_display.gd")
+const GraphEditor := preload("res://addons/rational/editor/graph_edit.gd")
+const Settings := preload("res://addons/rational/settings.gd")
 
 func _run() -> void:
 	print("Running...")
@@ -25,12 +25,28 @@ func _run() -> void:
 	var create_popup: Window = main.graph_edit.popup
 	
 	var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
+	graph_edit.get_menu_hbox().print_tree_pretty()
+	#for node in graph_edit.get_menu_hbox().get_children():
+		#if node is BaseButton:
+			#printt(node.get_tooltip(), node.icon.get_size(), node.size)
 	
-	var shortcuts: String = "\n".join(editor_settings.get_shortcut_list())
+	#var paths:= Settings.get_shortcut_paths()
+	#for path: String in paths:
+		#print("\"%s\": \"%s\"" % [paths[path].trim_prefix("rational/"), path])
+	#
+	#for setti
+	#var list:= RationalEditorSettings.get_shortcut_list()
+	#for path in list:
+		#print("%s => %s" % [path, list[path]])
+	
+	#write_file("\n".join(RationalEditorSettings.get_shortcut_path_list()))
+	
+	# String = "\n".join(editor_settings.get_shortcut_list())
 	#
 	#graph_edit.init_shortcuts()
+	#plugin.window_wrapper.window.show()
 	
-	printt(EditorInterface.get_editor_main_screen().get_children())
+	#printt("ProjectSettings/balls".get_slice("/", 1))
 
 
 func print_cache(c: Cache) -> void:
@@ -41,6 +57,10 @@ func print_cache(c: Cache) -> void:
 	printt("Roots: ", " | ".join(root_names))
 
 
+func write_file(text: String, path: String = "res://temp.txt") -> void:
+	var fa: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	fa.store_string(text)
+	fa.close()
 
 
 func get_class_files(type_name: StringName = &"", dir: EditorFileSystemDirectory = EditorInterface.get_resource_filesystem().get_filesystem()) -> PackedStringArray:

@@ -2,7 +2,12 @@
 extends RefCounted
 ## 
 
+
 const Util := preload("../util.gd")
+
+const ClassData := preload("rational_class_data.gd")
+const ShortcutData := preload("shortcut_data.gd")
+
 
 const FILENAME: String = "cache.cfg"
 const SECTION: String = "root_data_list"
@@ -23,14 +28,17 @@ signal request_save_as(data: RationalComponent)
 ## Emitted when 
 signal edited_tree_changed(data: RootData)
 
+var class_data: ClassData
+
+var shortcut_data: ShortcutData
+
 ## Class icon textures.
 var class_icons: Dictionary[StringName, Texture2D]
 
 var root_data_list: Array[RootData]
 
-var open_scenes: PackedStringArray
-
 var edited_tree: RootData: set = set_edited_tree
+
 
 func set_edited_tree(val: RootData) -> void:
 	if edited_tree == val: return
@@ -63,8 +71,8 @@ func edit_rational_tree(tree: RationalTree) -> void:
 func _init() -> void:
 	EditorInterface.get_file_system_dock().files_moved.connect(_on_file_moved)
 	EditorInterface.get_file_system_dock().resource_removed.connect(_on_resource_removed)
-	EditorInterface.get_resource_filesystem().script_classes_updated.connect(populate_class_icons, CONNECT_DEFERRED)
-	populate_class_icons()
+	class_data = ClassData.new()
+	shortcut_data = ShortcutData.new()
 
 
 #region Paths/Roots
@@ -228,44 +236,6 @@ func load_path(path: String) -> RationalComponent:
 
 #endregion Save/Load
 
-#region icon
-
-func class_extends_rational_component(_class: StringName) -> bool:
-	return _class in class_icons
-
-func has_icon(_class: StringName) -> bool:
-	return _class in class_icons
-
-func comp_get_class(comp: Object) -> String:
-	return comp.get_script().get_global_name() if comp else ""
-
-func comp_get_icon(comp: Object) -> Texture2D:
-	return class_get_icon(comp_get_class(comp))
-
-func data_get_icon(data: RootData) -> Texture2D:
-	return class_get_icon(data.class_of_root) if data else null
-
-func class_get_icon(_class: StringName) -> Texture2D:
-	return class_icons.get(_class, class_icons.get(&"RationalComponent"))
-
-func populate_class_icons() -> void:
-	class_icons.clear()
-	var class_list: Array[Dictionary] = ProjectSettings.get_global_class_list()
-	
-	for dict: Dictionary in class_list:
-		if dict.class != &"RationalComponent": continue
-		class_icons[&"RationalComponent"] = load(dict.icon)
-	
-	var base_classes: Array[StringName] = [&"RationalComponent"]
-	while not base_classes.is_empty():
-		var new_bases: Array[StringName] = []
-		for dict: Dictionary in class_list:
-			if dict.base in base_classes:
-				new_bases.push_back(dict.class)
-				class_icons[dict.class] = load(dict.icon) if dict.icon else class_icons[dict.base]
-		base_classes = new_bases
-
-#endregion icon
 
 func _on_resource_removed(res: Resource) -> void:
 	if res is RationalComponent:
@@ -294,3 +264,25 @@ func generate_unique_name(initial_name: String, name_list: PackedStringArray) ->
 		result = base_name + str(i)
 	
 	return result
+
+#region icon
+
+func class_extends_rational_component(_class: StringName) -> bool:
+	return class_data.class_extends_rational_component(_class)
+
+func has_icon(_class: StringName) -> bool:
+	return class_data.class_has_icon(_class)
+
+func comp_get_class(comp: Object) -> String:
+	return class_data.comp_get_class(comp)
+
+func comp_get_icon(comp: Object) -> Texture2D:
+	return class_data.comp_get_icon(comp)
+
+func data_get_icon(data: RootData) -> Texture2D:
+	return class_get_icon(data.class_of_root) if data else null
+
+func class_get_icon(_class: StringName) -> Texture2D:
+	return class_data.class_get_icon(_class)
+
+#endregion icon

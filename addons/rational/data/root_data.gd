@@ -10,6 +10,8 @@ const META_ROOT: StringName = &"_is_root"
 ## Emitted when data changed.
 signal changed
 
+signal root_changed
+
 signal tree_changed
 
 signal request_edit
@@ -107,6 +109,7 @@ func set_root(val: RationalComponent) -> void:
 		
 		set_block_signals(false)
 		changed.emit()
+		root_changed.emit()
 
 
 func set_path(val: String) -> void:

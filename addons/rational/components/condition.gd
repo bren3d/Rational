@@ -1,7 +1,7 @@
 ## [Leaf] that either return SUCCESS or FAILURE depending on
 ## a single simple condition. They should never return `RUNNING`.
 @tool
-@icon("../icons/Conditional.svg")
+@icon("../icons/ConditionLeaf.svg")
 class_name ConditionLeaf extends Leaf
 
 ## Expression that will return [code]SUCCESS[/code] if true

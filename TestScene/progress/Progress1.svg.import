@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cr83yju68e636"
-path="res://.godot/imported/Leaf.svg-30d97d6c85cc3604c81dcf6171bce638.ctex"
+uid="uid://c8jqnvh2qxehl"
+path="res://.godot/imported/Progress1.svg-0d4b5fc9384de53926fa2cfdee0c6000.ctex"
 metadata={
 "has_editor_variant": true,
 "vram_texture": false
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://addons/rational/icons/Leaf.svg"
-dest_files=["res://.godot/imported/Leaf.svg-30d97d6c85cc3604c81dcf6171bce638.ctex"]
+source_file="res://TestScene/progress/Progress1.svg"
+dest_files=["res://.godot/imported/Progress1.svg-0d4b5fc9384de53926fa2cfdee0c6000.ctex"]
 
 [params]
 

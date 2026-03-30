@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bmmngo2ljnt47" path="res://addons/rational/editor/main.gd" id="1_vcojj"]
 [ext_resource type="Script" uid="uid://bkxs3p2n1wpnu" path="res://addons/rational/editor/tree_display.gd" id="4_0erff"]
 [ext_resource type="Script" uid="uid://cdj01sjgru37f" path="res://addons/rational/editor/root_file_list.gd" id="5_amsbt"]
-[ext_resource type="Script" uid="uid://djxw4k5g7enow" path="res://addons/rational/editor/create_popup.gd" id="5_gplcq"]
+[ext_resource type="Script" uid="uid://djxw4k5g7enow" path="res://addons/rational/editor/component_dialog.gd" id="5_gplcq"]
 [ext_resource type="Script" uid="uid://bd5v5ht25lnji" path="res://addons/rational/editor/graph_edit.gd" id="5_hsmtw"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_v5muy"]
@@ -16,7 +16,7 @@ content_margin_bottom = 0.0
 _source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#ff5d5d\" d=\"M2 1v8.586l1.293-1.293a1 1 0 0 1 1.414 0L7 10.587l2.293-2.293a1 1 0 0 1 1.414 0L13 10.586l1-1V6H9V1H2zm8 0v4h4zm-6 9.414-2 2V15h12v-2.586l-.293.293a1 1 0 0 1-1.414 0L10 10.414l-2.293 2.293a1 1 0 0 1-1.414 0L4 10.414z\"/></svg>
 "
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gplcq"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hsmtw"]
 content_margin_left = 0.0
 content_margin_top = 0.0
 content_margin_right = 0.0
@@ -102,6 +102,7 @@ size_flags_vertical = 3
 theme_type_variation = &"EditorSectionContainer"
 
 [node name="RootListFilter" type="LineEdit" parent="MainVBox/main/VSplitTreePanel/VBoxRootFileTree" unique_id=954849055]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"TreeLineEdit"
@@ -150,6 +151,7 @@ size_flags_vertical = 3
 theme_type_variation = &"EditorSectionContainer"
 
 [node name="TreeFilter" type="LineEdit" parent="MainVBox/main/VSplitTreePanel/VBoxTreeDisplay" unique_id=2048738212]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -193,7 +195,7 @@ offset_right = 24.0
 offset_bottom = -28.0
 grow_vertical = 0
 theme_type_variation = &"PanelForeground"
-theme_override_styles/panel = SubResource("StyleBoxFlat_gplcq")
+theme_override_styles/panel = SubResource("StyleBoxFlat_hsmtw")
 
 [node name="PanelCollapseButton" type="Button" parent="MainVBox/main/GraphEdit/CollapsePanelContainer" unique_id=843086357]
 layout_mode = 2
@@ -257,7 +259,7 @@ text = "Description:"
 layout_mode = 2
 
 [node name="DescriptionRichText" type="RichTextLabel" parent="MainVBox/main/GraphEdit/CreatePopup/VBoxContainer/PanelContainer" unique_id=472984411]
-custom_minimum_size = Vector2(0, 73.6)
+custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 theme_override_styles/focus = SubResource("StyleBoxEmpty_hsmtw")
 bbcode_enabled = true

@@ -2,13 +2,9 @@
 extends Tree
 
 const Util := preload("res://addons/rational/util.gd")
-const Cache:= preload("../data/cache.gd")
 
-const META_PATH: StringName = &"path"
-
-enum {COMMAND_INVALID = -1, COMMAND_SAVE, COMMAND_SAVE_AS, COMMAND_RENAME, COMMAND_CLOSE, COMMAND_CLOSE_OTHERS, COMMAND_CLOSE_BELOW, COMMAND_CLOSE_ALL, 
-COMMAND_SEP1,
-COMMAND_SET_PATH, COMMAND_MAX}
+const Cache := preload("../data/cache.gd")
+const SC := preload("../data/shortcut_data.gd")
 
 @export var filter_line_edit: LineEdit
 
@@ -18,22 +14,16 @@ COMMAND_SET_PATH, COMMAND_MAX}
 
 var cache: Cache
 
+
+var shortcut_callables: Dictionary[Shortcut, Callable]
 var shortcuts: Array[Shortcut]
 
-
+func apply_theme() -> void:
+	filter_line_edit.right_icon = Util.get_icon(&"Search")
 
 func _ready() -> void:
 	if not cache: return
-	
-	shortcuts.resize(COMMAND_MAX)
-	var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
-	shortcuts[COMMAND_SAVE] = editor_settings.get_shortcut("script_editor/save")
-	shortcuts[COMMAND_SAVE_AS] = editor_settings.get_shortcut("script_editor/save_as")
-	shortcuts[COMMAND_RENAME] = editor_settings.get_shortcut("scene_tree/rename")
-	shortcuts[COMMAND_CLOSE] = editor_settings.get_shortcut("script_editor/close_file")
-	shortcuts[COMMAND_CLOSE_OTHERS] = editor_settings.get_shortcut("script_editor/close_other_tabs")
-	shortcuts[COMMAND_CLOSE_BELOW] = editor_settings.get_shortcut("script_editor/close_tabs_below")
-	shortcuts[COMMAND_CLOSE_ALL] = editor_settings.get_shortcut("script_editor/close_all")
+	theme_changed.connect(apply_theme)
 	
 	init_popup()
 	
@@ -42,6 +32,9 @@ func _ready() -> void:
 	build_list()
 	
 	filter_line_edit.text_changed.connect(_on_filter_text_changed)
+	#TESTING
+	filter_line_edit.text_submitted.connect(func(text: String): print("Focus => %s" % filter_line_edit.has_focus()), CONNECT_DEFERRED)
+	
 	add_root_button.pressed.connect(_on_add_root_button_pressed)
 	
 	item_selected.connect(_on_item_selected)
@@ -205,6 +198,25 @@ func set_cache(val: Cache) -> void:
 #region RightClickMenu
 
 
+func save_selected() -> void:
+	save_item(get_selected())
+
+func save_selected_as() -> void:
+	save_item_as(get_selected())
+
+func close_selected() -> void:
+	close_item(get_selected())
+
+func close_unselected() -> void:
+	close_item(get_selected())
+
+func close_below_selected() -> void:
+	if not get_selected(): return
+	close_items_except(get_root().get_chilren().slice(0, get_selected().get_index()))
+
+func close_all() -> void:
+	close_items_except()
+
 func save_item(item: TreeItem) -> void:
 	var data: RootData = item_get_data(item)
 	if not data.can_save():
@@ -219,45 +231,74 @@ func _on_item_edited() -> void:
 	if item:
 		item_get_data(item).rename(item.get_text(0))
 
-func shortcut_get_accel(command_idx: int) -> Key:
-	if shortcuts[command_idx]:
-		for event in shortcuts[command_idx].events:
-			if event is InputEventKey:
-				return event.get_keycode_with_modifiers()
-	return KEY_NONE
+#func shortcut_get_accel(command_idx: int) -> Key:
+	#if shortcuts[command_idx]:
+		#for event in shortcuts[command_idx].events:
+			#if event is InputEventKey:
+				#return event.get_keycode_with_modifiers()
+	#return KEY_NONE
 
 
 func init_popup() -> void:
 	popup.clear()
-	popup.add_item("Save", COMMAND_SAVE, shortcut_get_accel(COMMAND_SAVE))
-	popup.add_item("Save As...", COMMAND_SAVE_AS, shortcut_get_accel(COMMAND_SAVE_AS))
-	popup.add_item("Rename", COMMAND_RENAME, shortcut_get_accel(COMMAND_RENAME))
-	popup.add_item("Close", COMMAND_CLOSE, shortcut_get_accel(COMMAND_CLOSE))
-	popup.add_item("Close Other Tabs", COMMAND_CLOSE_OTHERS, shortcut_get_accel(COMMAND_CLOSE_OTHERS))
-	popup.add_item("Close Tabs Below", COMMAND_CLOSE_BELOW, shortcut_get_accel(COMMAND_CLOSE_BELOW))
-	popup.add_item("Close All", COMMAND_CLOSE_ALL, shortcut_get_accel(COMMAND_CLOSE_ALL))
-	popup.add_separator("", COMMAND_SEP1)
-	popup.add_item("Change Path", COMMAND_CLOSE_ALL, shortcut_get_accel(COMMAND_CLOSE_ALL))
+	var sd := cache.shortcut_data
+	#popup.add_item()
+	cache.shortcut_data.add_item(popup, SC.SAVE, save_selected)
+	cache.shortcut_data.add_item(popup, SC.SAVE_AS, save_selected_as)
+	cache.shortcut_data.add_item(popup, SC.RENAME, edit_selected.bind(true))
+	cache.shortcut_data.add_item(popup, SC.CLOSE_FILE, close_selected)
+	cache.shortcut_data.add_item(popup, SC.CLOSE_OTHER_TABS, close_unselected)
+	cache.shortcut_data.add_item(popup, SC.CLOSE_TABS_BELOW, close_below_selected)
+	cache.shortcut_data.add_item(popup, SC.CLOSE_ALL, close_all)
+	popup.add_separator("")
+	popup.add_item("Change Path", )
+	popup.set_item_metadata(popup.item_count - 1, prompt_change_selected_path)
+	#popup.set_item_shortcut()
+	#var add_menu_item: Callable = \
+		#func(label: String, ) -> void:
+			#pass
+	#var callables: Dictionary[StringName, Callable] = {
+		#SC.SAVE: save_selected,
+		#SC.SAVE_AS: save_selected_as,
+		#SC.RENAME: edit_selected.bind(true),
+		#
+		#SC.RENAME: edit_selected.bind(true),
+		#SC.RENAME: edit_selected.bind(true),
+		#SC.RENAME: edit_selected.bind(true),
+	#}
+	#popup.add_item("Save", COMMAND_SAVE, shortcut_get_accel(COMMAND_SAVE))
+	#popup.add_item("Save As...", COMMAND_SAVE_AS, shortcut_get_accel(COMMAND_SAVE_AS))
+	#popup.add_item("Rename", COMMAND_RENAME, shortcut_get_accel(COMMAND_RENAME))
+	#popup.set_item_metadata(COMMAND_RENAME, edit_selected.bind(true))
+	#popup.add_item("Close", COMMAND_CLOSE, shortcut_get_accel(COMMAND_CLOSE))
+	#popup.add_item("Close Other Tabs", COMMAND_CLOSE_OTHERS, shortcut_get_accel(COMMAND_CLOSE_OTHERS))
+	#popup.add_item("Close Tabs Below", COMMAND_CLOSE_BELOW, shortcut_get_accel(COMMAND_CLOSE_BELOW))
+	#popup.add_item("Close All", COMMAND_CLOSE_ALL, shortcut_get_accel(COMMAND_CLOSE_ALL))
+	#popup.add_separator("", COMMAND_SEP1)
+	#popup.add_item("Change Path", COMMAND_CLOSE_ALL, shortcut_get_accel(COMMAND_CLOSE_ALL))
 
-func execute_command(command_index: int = COMMAND_INVALID) -> void:
-	var item: TreeItem = get_selected()
-	match command_index:
-		COMMAND_SAVE when item:
-			save_item(item)
-		COMMAND_SAVE_AS when item:
-			save_item_as(item)
-		COMMAND_RENAME when item:
-			edit_selected(true)
-		COMMAND_CLOSE when item:
-			close_item(item)
-		COMMAND_CLOSE_OTHERS when item:
-			close_items_except([item])
-		COMMAND_CLOSE_BELOW when item:
-			close_items_except(get_root().get_chilren().slice(0, item.get_index()))
-		COMMAND_CLOSE_ALL:
-			close_items_except()
-		COMMAND_SET_PATH when item:
-			prompt_change_tree_path(item)
+
+
+#func execute_command(command_index: int = -1) -> void:
+	#pass
+	#var item: TreeItem = get_selected()
+	#match command_index:
+		#COMMAND_SAVE when item:
+			#save_item(item)
+		#COMMAND_SAVE_AS when item:
+			#save_item_as(item)
+		#COMMAND_RENAME when item:
+			#edit_selected(true)
+		#COMMAND_CLOSE when item:
+			#close_item(item)
+		#COMMAND_CLOSE_OTHERS when item:
+			#close_items_except([item])
+		#COMMAND_CLOSE_BELOW when item:
+			#close_items_except(get_root().get_chilren().slice(0, item.get_index()))
+		#COMMAND_CLOSE_ALL:
+			#close_items_except()
+		#COMMAND_SET_PATH when item:
+			#prompt_change_tree_path(item)
 
 func _gui_input(event: InputEvent) -> void:
 	if not event.is_pressed() or event.is_echo(): return
@@ -275,20 +316,29 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 			popup.position = get_viewport().position + Vector2i(event.global_position)
 			popup.popup()
+
+
+func _shortcut_input(event: InputEvent) -> void:
+	if not event.is_pressed() or event.is_echo(): return
 	
-	
-	for i: int in shortcuts.size():
-		if shortcuts[i] and shortcuts[i].matches_event(event):
-			execute_command(i)
+	for sc: Shortcut in shortcut_callables:
+		if sc.matches_event(event):
 			accept_event()
-			break
+			shortcut_callables[sc].call()
+			return
 
 
 func _on_popup_menu_index_pressed(index: int) -> void:
-	execute_command(index)
+	shortcut_callables.get(popup.get_item_shortcut(index), Callable()).call()
+	popup.get_item_metadata(index).call()
+	#execute_command(index)
 
 func prompt_change_tree_path(item: TreeItem) -> void:
+	if not item: return
 	DisplayServer.dialog_input_text("Set Tree Path", "", item_get_path(item), parse_tree_path_response)
+
+func prompt_change_selected_path() -> void:
+	prompt_change_tree_path(get_selected())
 
 func parse_tree_path_response(path: String) -> void:
 	var item: TreeItem = get_selected()
@@ -300,6 +350,7 @@ func close_items_except(items_staying: Array[TreeItem] = []) -> void:
 	for item: TreeItem in get_root().get_children():
 		if item in items_staying: continue
 		close_item(item)
+
 
 
 #endregion

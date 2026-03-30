@@ -4,6 +4,8 @@
 @icon("../icons/RationalComponent.svg")
 class_name RationalComponent extends Resource
 
+const NAME_MAX_LENGTH: int = 64
+
 enum {SUCCESS, FAILURE, RUNNING}
 
 signal tree_changed
@@ -66,7 +68,7 @@ func _set(property: StringName, value: Variant) -> bool:
 			resource_local_to_scene = false
 			return true
 		&"resource_name":
-			resource_name = value if value else get_class_name().back()
+			resource_name = value.left(NAME_MAX_LENGTH) if value else get_class_name().back()
 			emit_changed()
 		&"resource_path":
 			resource_path = value

@@ -1,4 +1,4 @@
-@icon("../../icons/StatusSuccess.svg")
+@icon("../../icons/Succeeder.svg")
 @tool
 class_name Succeeder extends Decorator
 ## [Decorator] that will always return [member SUCCESS]. Inverse of [Failer].

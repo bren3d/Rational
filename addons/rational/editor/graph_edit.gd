@@ -3,15 +3,14 @@ extends GraphEdit
 
 #signal preview_created(root: RootData, preview: Image)
 
+const Util := preload("../util.gd")
+
 const EditorStyle = preload("editor_style.gd")
 const RationalGraphNode := preload("graph_node.gd")
-const CreatePopup = preload("create_popup.gd")
+const CreatePopup = preload("component_dialog.gd") 
 
 const PROGRESS_SHIFT: int = 50
 const PORT_RANGE: float = 10
-
-const HORIZONTAL_LAYOUT_ICON := preload("icons/horizontal_layout.svg")
-const VERTICAL_LAYOUT_ICON := preload("icons/vertical_layout.svg")
 
 signal selected_changed(nodes: Array[RationalComponent])
 
@@ -19,6 +18,7 @@ signal selected_changed(nodes: Array[RationalComponent])
 
 var style: EditorStyle
 var layout_button: Button
+var menu: PopupMenu
 
 var updating_graph: bool = false
 var arranging_nodes: bool = false
@@ -56,25 +56,82 @@ var reset_dragged_nodes: bool = false
 #var undo_redo: UndoRedo = UndoRedo.new()
 var shortcuts: Dictionary[Shortcut, Callable]
 
+var layout_icons: Array[Texture2D]
+#@export_tool_button("", "create")
+#var kdfjld
+
+
+
 #region shortcuts
+
+#enum {ID_INVALID = -1, ID_ADD_COMPONENT_HERE, ID_RENAME, }
+
+func init_menu() -> void:
+	if not menu:
+		menu = PopupMenu.new()
+		add_child(menu)
+		menu.index_pressed.connect(_on_menu_pressed)
+	
+	menu.clear()
+	
+	menu.add_icon_item(get_theme_icon(&"Add", &"EditorIcons"), "Add Component Here...")
+	menu.set_item_metadata(menu.item_count - 1, add_component_here)
+	
+	#menu.add_icon_item(get_theme_icon(&"Instance", &"EditorIcons"), "Instance Component Here...")
+	#menu.set_item_metadata(menu.item_count - 1, instance_component_here)
+	
+	menu.add_separator("")
+	
+	menu.add_icon_item(get_theme_icon(&"Rename", &"EditorIcons"), "Rename")
+	menu.set_item_shortcut(menu.item_count - 1, Util.get_shortcut("rename"))
+	menu.set_item_metadata(menu.item_count - 1, rename)
+	
+	menu.add_icon_item(get_theme_icon(&"RotateLeft", &"EditorIcons"), "Change Type...")
+	menu.set_item_shortcut(menu.item_count - 1, Util.get_shortcut("change_type"))
+	menu.set_item_metadata(menu.item_count - 1, prompt_change_type)
+	
+	menu.add_separator("")
+	
+	menu.add_icon_item(get_theme_icon(&"NewRoot", &"EditorIcons"), "Save as Root")
+	menu.set_item_shortcut(menu.item_count - 1, Util.get_shortcut("rename"))
+	menu.set_item_metadata(menu.item_count - 1, save_as_root)
+	
+	#menu.add_shortcut(Util.get_shortcut("new_root"), id)
+	
+	
+
+func _on_menu_pressed(index: int) -> void:
+	menu.get_item_metadata(index).call()
 
 func init_shortcuts() -> void:
 	var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
 	
-	shortcuts[editor_settings.get_shortcut("canvas_item_editor/toggle_grid")] = toggle_grid
-	shortcuts[editor_settings.get_shortcut("canvas_item_editor/use_grid_snap")] = toggle_snap
-	shortcuts[editor_settings.get_shortcut("canvas_item_editor/frame_selection")] = frame_selection
-	shortcuts[editor_settings.get_shortcut("canvas_item_editor/center_selection")] = center_selection
-	shortcuts[editor_settings.get_shortcut("canvas_item_editor/zoom_minus")] = zoom_out
-	shortcuts[editor_settings.get_shortcut("canvas_item_editor/zoom_plus")] = zoom_in
+	shortcuts[Util.get_shortcut("toggle_grid")] = toggle_grid
+	shortcuts[Util.get_shortcut("use_grid_snap")] = toggle_snap
+	shortcuts[Util.get_shortcut("frame_selection")] = frame_selection
+	shortcuts[Util.get_shortcut("center_selection")] = center_selection
+	shortcuts[Util.get_shortcut("zoom_minus")] = zoom_out
+	shortcuts[Util.get_shortcut("zoom_plus")] = zoom_in
+	shortcuts[Util.get_shortcut("cancel_transform")] = cancel_drag
 	
-	for percent in [3.125, 6.25, 12.5, 25, 50, 100, 200, 400, 800, 1600]:
-		shortcuts[editor_settings.get_shortcut("canvas_item_editor/zoom_%s_percent" % percent)] = set_zoom.bind(float(percent)/100.0)
-	
-	shortcuts[editor_settings.get_shortcut("canvas_item_editor/cancel_transform")] = cancel_drag
-	
+	for percent_str: String in ["3.125", "6.25", "12.5", "25", "50", "100", "200", "400", "800", "1600"]:
+		shortcuts[Util.get_shortcut(percent_str)] = set_zoom.bind(float(percent_str.to_float())/100.0)
+
 	shortcuts.erase(null)
 
+func add_component_here() -> void:
+	popup.popup_at_position(menu.position)
+	#open_create_popup(menu.position)
+	
+
+func rename() -> void:
+	pass
+
+func prompt_change_type() -> void:
+	pass
+
+func save_as_root() -> void:
+	pass
 
 func zoom_in() -> void:
 	zoom *= zoom_step
@@ -100,16 +157,28 @@ func toggle_snap() -> void:
 
 #endregion shortcuts
 
+func _on_popup_request(at_position: Vector2) -> void:
+	if is_moving_node:
+		cancel_drag()
+		return
+	open_create_popup(get_viewport().position + Vector2i(at_position))
+
+
 func _ready() -> void:
 	style = EditorStyle.new()
 	
 	custom_minimum_size = Vector2(200, 200) * EditorInterface.get_editor_scale()
-	layout_button = Button.new()
-	layout_button.flat = true
-	layout_button.focus_mode = Control.FOCUS_NONE
-	layout_button.pressed.connect(toggle_layout)
+	
+	#layout_button.flat = true
+	#layout_button.focus_mode = Control.FOCUS_NONE
+	
+	layout_button = get_menu_hbox().get_child(-1).duplicate(0)
+	layout_button.show()
+	layout_button.toggle_mode = false
 	update_layout_button()
 	get_menu_hbox().add_child(layout_button)
+	layout_button.pressed.connect(toggle_layout)
+	
 	
 	connection_drag_started.connect(_on_connection_drag_started)
 	connection_request.connect(_on_connection_request)
@@ -124,7 +193,9 @@ func _ready() -> void:
 	end_node_move.connect(_on_end_node_move)
 	
 	popup.node_created.connect(_on_node_created)
+	popup_request.connect(_on_popup_request)
 	
+	init_menu()
 	init_shortcuts()
 
 
@@ -267,6 +338,10 @@ func populate_tree() -> void:
 	for comp: RationalComponent in get_active_root_orphans():
 		add_node(comp)
 
+func exclusive_select(node: RationalGraphNode) -> void:
+	for graph_node: RationalGraphNode in get_graph_nodes():
+		graph_node.selected = graph_node == node
+
 ## Recursively adds all children.
 func add_node(comp: RationalComponent) -> RationalGraphNode:
 	var node: RationalGraphNode = RationalGraphNode.new(style, horizontal_layout)
@@ -275,6 +350,7 @@ func add_node(comp: RationalComponent) -> RationalGraphNode:
 	node.set_component(comp)
 	node.component_children_changed.connect(_on_component_children_changed, CONNECT_APPEND_SOURCE_OBJECT)
 	node.dragged.connect(_on_node_dragged, CONNECT_APPEND_SOURCE_OBJECT)
+	node.request_selection.connect(exclusive_select, CONNECT_APPEND_SOURCE_OBJECT)
 	
 	node.set_slots(comp != get_root_component(), comp is Composite)
 	
@@ -511,7 +587,10 @@ func get_orphan_components() -> Array[RationalComponent]:
 	return result
 
 func get_active_root_orphans() -> Array[RationalComponent]:
-	return graph_states.get(active_root, {}).get("orphans", [])
+	var result: Array[RationalComponent]
+	for orphan: RationalComponent in graph_states.get(active_root, {}).get("orphans", []):
+		result.push_back(orphan)
+	return result
 
 func save_current_orphans() -> void:
 	if not active_root: return
@@ -553,6 +632,7 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	
 	if event is InputEventMouseButton:
+		#return # TESTING
 		if not is_dragging_connection and event.button_index == MOUSE_BUTTON_RIGHT:
 			accept_event()
 			
@@ -563,7 +643,7 @@ func _gui_input(event: InputEvent) -> void:
 			if disconnect_hovered_port():
 				return
 			
-			open_create_popup(get_viewport().position + Vector2i(event.global_position))
+			#open_create_popup(get_viewport().position + Vector2i(event.global_position))
 
 	if event is InputEventKey:
 		match event.keycode:
@@ -571,6 +651,9 @@ func _gui_input(event: InputEvent) -> void:
 				printt(Rect2(scroll_offset/zoom, size/zoom))
 			KEY_T:
 				active_root.root.print_tree_pretty()
+			KEY_L:
+				var focus_owner: Control = get_viewport().gui_get_focus_owner()
+				print(focus_owner.component if focus_owner is RationalGraphNode else focus_owner)
 				
 
 
@@ -692,8 +775,6 @@ func nodes_get_rect(nodes: Array[RationalGraphNode]) -> Rect2:
 func get_graph_rect() -> Rect2:
 	return nodes_get_rect(get_graph_nodes())
 
-
-
 func _on_tree_display_selected_items_changed(items: Array[RationalComponent]) -> void:
 	block_selection_signal = true
 	for node: RationalGraphNode in get_graph_nodes():
@@ -739,5 +820,5 @@ func toggle_layout() -> void:
 	horizontal_layout = !horizontal_layout
 
 func update_layout_button() -> void:
-	layout_button.icon = VERTICAL_LAYOUT_ICON if horizontal_layout else HORIZONTAL_LAYOUT_ICON
+	layout_button.icon = EditorInterface.get_editor_theme().get_icon(&"MoveRight" if horizontal_layout else &"MoveDown", &"EditorIcons")
 	layout_button.tooltip_text = "Switch to Vertical layout" if horizontal_layout else "Switch to Horizontal layout"

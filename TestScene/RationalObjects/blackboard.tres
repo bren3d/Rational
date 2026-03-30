@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="Blackboard" format=3 uid="uid://biyy15bsy8r7i"]
+
+[ext_resource type="Script" uid="uid://6ug5fa63l34w" path="res://addons/rational/components/blackboard.gd" id="1_xv7hr"]
+
+[resource]
+script = ExtResource("1_xv7hr")
+metadata/_custom_type_script = "uid://6ug5fa63l34w"

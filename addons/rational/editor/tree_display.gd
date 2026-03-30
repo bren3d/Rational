@@ -16,13 +16,13 @@ signal selected_items_changed(items: Array[RationalComponent])
 var active_root: RootData: set = set_active_root
 
 var cache: Cache
+
 var block_selection_signal: bool = false
 
 
 func _ready() -> void:
-	if not cache: return
 	tree_filter_line_edit.text_changed.connect(_on_filter_text_changed)
-	cache.edited_tree_changed.connect(edit_tree)
+	
 
 
 func apply_theme() -> void:
@@ -155,6 +155,7 @@ func get_visible_icon(item_visible: bool) -> Texture2D:
 
 func set_cache(val: Cache) -> void:
 	cache = val
+	cache.edited_tree_changed.connect(edit_tree)
 
 func get_all_selected() -> Array[TreeItem]:
 	var selected_items: Array[TreeItem]
@@ -215,7 +216,6 @@ func _can_drop_data(at_position: Vector2, data: Variant) -> bool:
 			"items" when data.get("source") == self:
 				drop_mode_flags = DROP_MODE_INBETWEEN | DROP_MODE_ON_ITEM
 				return true
-	
 	return false
 
 

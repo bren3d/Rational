@@ -1,23 +1,22 @@
 [gd_scene format=3 uid="uid://cqlh6e0fg4ujq"]
 
-[ext_resource type="Texture2D" uid="uid://di2wc3o4q6mm" path="res://addons/rational/icons/StatusError.svg" id="1_hfd0a"]
-[ext_resource type="Texture2D" uid="uid://c8jqnvh2qxehl" path="res://addons/rational/icons/progress/Progress1.svg" id="2_awrda"]
-[ext_resource type="Texture2D" uid="uid://dwnb2er0cisqb" path="res://addons/rational/icons/progress/Progress2.svg" id="3_8r7uy"]
-[ext_resource type="Texture2D" uid="uid://0l66widh5vmv" path="res://addons/rational/icons/progress/Progress3.svg" id="4_du3fg"]
-[ext_resource type="Texture2D" uid="uid://xu35evcpgnei" path="res://addons/rational/icons/progress/Progress4.svg" id="5_e0gg1"]
-[ext_resource type="Texture2D" uid="uid://bmhv8up1qumdn" path="res://addons/rational/icons/progress/Progress5.svg" id="6_e30hf"]
-[ext_resource type="Texture2D" uid="uid://ci48tvdso7aw8" path="res://addons/rational/icons/progress/Progress6.svg" id="7_c62ll"]
-[ext_resource type="Texture2D" uid="uid://devwwlu2rqt0k" path="res://addons/rational/icons/progress/Progress7.svg" id="8_yb3kw"]
-[ext_resource type="Texture2D" uid="uid://oye25kn7ai44" path="res://addons/rational/icons/progress/Progress8.svg" id="9_1ligp"]
-[ext_resource type="Texture2D" uid="uid://gq8ctm18yiq8" path="res://addons/rational/icons/StatusSuccess.svg" id="10_g5bju"]
-[ext_resource type="Texture2D" uid="uid://cc51relmrs63n" path="res://addons/rational/icons/StatusWarning.svg" id="11_645ia"]
+[ext_resource type="Texture2D" uid="uid://di2wc3o4q6mm" path="res://addons/rational/icons/Failer.svg" id="1_hfd0a"]
+[ext_resource type="Texture2D" uid="uid://c8jqnvh2qxehl" path="res://TestScene/progress/Progress1.svg" id="2_awrda"]
+[ext_resource type="Texture2D" uid="uid://dwnb2er0cisqb" path="res://TestScene/progress/Progress2.svg" id="3_8r7uy"]
+[ext_resource type="Texture2D" uid="uid://0l66widh5vmv" path="res://TestScene/progress/Progress3.svg" id="4_du3fg"]
+[ext_resource type="Texture2D" uid="uid://xu35evcpgnei" path="res://TestScene/progress/Progress4.svg" id="5_e0gg1"]
+[ext_resource type="Texture2D" uid="uid://bmhv8up1qumdn" path="res://TestScene/progress/Progress5.svg" id="6_e30hf"]
+[ext_resource type="Texture2D" uid="uid://ci48tvdso7aw8" path="res://TestScene/progress/Progress6.svg" id="7_c62ll"]
+[ext_resource type="Texture2D" uid="uid://devwwlu2rqt0k" path="res://TestScene/progress/Progress7.svg" id="8_yb3kw"]
+[ext_resource type="Texture2D" uid="uid://oye25kn7ai44" path="res://TestScene/progress/Progress8.svg" id="9_1ligp"]
+[ext_resource type="Texture2D" uid="uid://gq8ctm18yiq8" path="res://addons/rational/icons/Succeeder.svg" id="10_g5bju"]
+[ext_resource type="Texture2D" uid="uid://cc51relmrs63n" path="res://TestScene/StatusWarning.svg" id="11_645ia"]
 [ext_resource type="Script" uid="uid://davp5u2xw823n" path="res://addons/rational/components/rational_tree.gd" id="12_m8cgi"]
 [ext_resource type="Script" uid="uid://6ug5fa63l34w" path="res://addons/rational/components/blackboard.gd" id="13_6m14f"]
-[ext_resource type="Texture2D" uid="uid://c6xt30y0jeyie" path="res://addons/rational/icons/Debug.svg" id="14_4x1kh"]
+[ext_resource type="Texture2D" uid="uid://c6xt30y0jeyie" path="res://TestScene/Debug.svg" id="14_4x1kh"]
 [ext_resource type="Script" uid="uid://bf5yfufeku4t4" path="res://addons/rational/components/rational_component.gd" id="14_s7iw1"]
 [ext_resource type="Script" uid="uid://b084a27qrwlfn" path="res://addons/rational/components/sequence.gd" id="16_f0c8p"]
 [ext_resource type="Script" uid="uid://bktdpfgt2g20l" path="res://addons/rational/components/condition.gd" id="17_8sece"]
-[ext_resource type="Texture2D" uid="uid://ya105wb6fqmt" path="res://addons/rational/icons/EditorHandle.svg" id="18_t2hwn"]
 [ext_resource type="Script" uid="uid://cugqq0rl38kp7" path="res://addons/rational/components/fallback.gd" id="20_leic3"]
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_0cnec"]
@@ -143,6 +142,9 @@ func _physics_process(delta: float) -> void:
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_8e8r4"]
 size = Vector2(50, 50)
 
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_wh884"]
+states/Start/position = Vector2(243.33333, 124.666664)
+
 [node name="TestSceneCharacter" type="Node2D" unique_id=1309542413]
 
 [node name="Actor" type="AnimatedSprite2D" parent="." unique_id=1321677508]
@@ -208,21 +210,10 @@ shape = SubResource("RectangleShape2D_8e8r4")
 scale = Vector2(2, 2)
 texture = ExtResource("14_4x1kh")
 
-[node name="PopupMenu" type="PopupMenu" parent="." unique_id=936776542]
-unique_name_in_owner = true
-auto_translate_mode = 1
-oversampling_override = 1.0
-size = Vector2i(122, 116)
-visible = true
-unfocusable = true
-item_count = 4
-item_0/text = "Option 1"
-item_0/icon = ExtResource("18_t2hwn")
-item_0/id = 0
-item_1/text = "Option 2"
-item_1/icon = ExtResource("18_t2hwn")
-item_1/id = 1
-item_2/text = "Option 3"
-item_2/icon = ExtResource("18_t2hwn")
-item_2/id = 2
-item_3/id = 3
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Player" unique_id=544141507]
+root_node = NodePath("../..")
+
+[node name="AnimationTree" type="AnimationTree" parent="Player" unique_id=434611100]
+root_node = NodePath("../..")
+tree_root = SubResource("AnimationNodeStateMachine_wh884")
+anim_player = NodePath("../AnimationPlayer")

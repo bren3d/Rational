@@ -4,7 +4,7 @@ extends EditorPlugin
 const Util := preload("util.gd")
 const Cache := preload("data/cache.gd")
 
-const Frames := preload("editor/editor_style.gd")
+const WindowWrapper := preload("editor/window_wrapper.gd")
 const Editor := preload("editor/main.gd")
 
 const InpsectorPlugin := preload("plugins/inspector/inspector_plugin.gd")
@@ -14,8 +14,8 @@ var inspector_plugin: InpsectorPlugin
 ## Cache for all RationalComponent resources. 
 var cache: Cache
 
+var window_wrapper: WindowWrapper
 var editor: Editor
-var frames: Frames
 
 #region Enter/Exit
 
@@ -29,12 +29,13 @@ func _enter_tree() -> void:
 	
 	cache = Cache.new()
 	
+	window_wrapper = WindowWrapper.new()
+	
 	editor = preload("editor/main.tscn").instantiate()
 	Engine.set_meta(&"Main", editor)
-	
 	editor.propagate_call(&"set_cache", [cache])
-	editor.hide()
-	EditorInterface.get_editor_main_screen().add_child(editor)
+	
+	EditorInterface.get_editor_main_screen().add_child(window_wrapper)
 	
 	inspector_plugin = InpsectorPlugin.new()
 	inspector_plugin.set_cache(cache)
@@ -44,18 +45,17 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
-	editor.queue_free()
+	window_wrapper.queue_free()
+	editor.queue_free() # TBR
 	
 	remove_inspector_plugin(inspector_plugin)
 	inspector_plugin = null
 	
 	cache.save()
 	cache = null
-	
-	Engine.remove_meta(&"Frames")
-	frames = null
 
-	Engine.remove_meta(&"Main")
+	Engine.set_meta(&"Main", null)
+	Engine.set_meta(&"RationalClassData", null)
 
 	Engine.unregister_singleton(&"Rational")
 
@@ -82,7 +82,7 @@ func _edit(object: Object) -> void:
 		EditorInterface.inspect_object(object, "", true)
 
 func _make_visible(visible: bool) -> void:
-	editor.make_visible(visible)
+	window_wrapper.make_visible(visible)
 
 func _has_main_screen() -> bool:
 	return true
@@ -95,3 +95,6 @@ func _get_plugin_name() -> String:
 
 func _on_scene_saved(filepath: String) -> void:
 	print_rich("Scene saved: [color=yellow]%s[/color] " % [filepath])
+
+func _save_external_data() -> void:
+	cache.save()
