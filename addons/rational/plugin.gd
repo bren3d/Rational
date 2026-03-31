@@ -22,6 +22,7 @@ var editor: Editor
 func _enter_tree() -> void:
 	resource_saved.connect(_on_resource_saved)
 	scene_saved.connect(_on_scene_saved)
+	get_script_create_dialog().script_created.connect(_on_script_created)
 	
 	name = &"Rational"
 	
@@ -69,6 +70,15 @@ func _on_resource_saved(res: Resource) -> void:
 		print("Adding root... %s" % res)
 		print_rich("Resource saved: %s([color=yellow]%s[/color]) @ [color=pink]%s[/color]" % [res.resource_name, res, res.resource_path])
 
+func _on_script_created(script: Script) -> void:
+	if not script or not script.get_base_script(): return
+	if not Util.class_is_valid(script.get_base_script().get_global_name()):
+		print("Script doesn't extend RationalComponent")
+		return
+	
+	print("New script is tool: %s" % script.is_tool())
+	print("New script contains '@tool': %s" % script.source_code.containsn("@tool"))
+	
 
 func _handles(object: Object) -> bool:
 	return object is RationalTree and EditorInterface.get_inspector().get_edited_object() != object

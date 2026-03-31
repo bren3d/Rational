@@ -34,6 +34,9 @@ func has_child(comp: RationalComponent, recursive: bool = false) -> bool:
 func can_parent(child: RationalComponent) -> bool:
 	return false
 
+func get_child_index(child: RationalComponent) -> int:
+	return get_children().find(child)
+	
 func get_child(idx: int) -> RationalComponent:
 	return get_children()[idx]
 
@@ -55,11 +58,8 @@ func get_tree_string_pretty(prefix: String, is_last: bool) -> String:
 		tree_string += get_child(i).get_tree_string_pretty(prefix + prefix_extension, i == get_child_count() - 1)
 	return tree_string
 
-func get_class_name() -> Array[StringName]:
-	return [&"RationalComponent"]
-
-func _get_configuration_warnings() -> PackedStringArray:
-	return PackedStringArray()
+#func _get_configuration_warnings() -> PackedStringArray:
+	#return PackedStringArray()
 
 
 func _set(property: StringName, value: Variant) -> bool:
@@ -68,7 +68,7 @@ func _set(property: StringName, value: Variant) -> bool:
 			resource_local_to_scene = false
 			return true
 		&"resource_name":
-			resource_name = value.left(NAME_MAX_LENGTH) if value else get_class_name().back()
+			resource_name = value.left(NAME_MAX_LENGTH) if value else &"RationalComponent"
 			emit_changed()
 		&"resource_path":
 			resource_path = value

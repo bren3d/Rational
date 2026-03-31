@@ -29,7 +29,6 @@ var component: RationalComponent: set = set_component
 	set(value):
 		icon = value
 		icon_rect.texture = value
-		#line_edit.right_icon = value
 
 
 var layout_size: float:
@@ -41,7 +40,6 @@ var title_label: Label
 var line_edit: LineEdit
 var label: Label
 var titlebar_hbox: HBoxContainer
-var menu: PopupMenu
 
 var frames: RefCounted
 var horizontal: bool = false : set = set_horizontal
@@ -71,8 +69,6 @@ var current_index: int = 0:
 		current_index = val
 		queue_redraw()
 
-var shortcuts: Dictionary[Shortcut, Callable]
-
 func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	self.frames = frames
 	self.horizontal = horizontal
@@ -80,8 +76,8 @@ func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	custom_minimum_size = Vector2(50, 50) * EditorInterface.get_editor_scale()
 	
 	# For top port
-	var top_port: Control = Control.new()
-	add_child(top_port)
+	#var top_port: Control = Control.new()
+	#add_child(top_port)
 
 	icon_rect = TextureRect.new()
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -106,10 +102,6 @@ func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	line_edit.select_all_on_focus = true
 	line_edit.expand_to_text_length = true
 	line_edit.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	#line_edit.focus_mode = Control.FOCUS_NONE
-	#line_edit.context_menu_enabled = false
-	#line_edit.emoji_menu_enabled = false
-	#line_edit.shortcut_keys_enabled = false
 	line_edit.max_length = RationalComponent.NAME_MAX_LENGTH
 	line_edit.add_theme_color_override("font_color", Color.WHITE)
 	line_edit.add_theme_color_override("font_uneditable_color", Color.WHITE)
@@ -117,13 +109,9 @@ func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	var empty_stylebox: StyleBoxEmpty = StyleBoxEmpty.new()
 	line_edit.add_theme_stylebox_override("normal", empty_stylebox)
 	line_edit.add_theme_stylebox_override("read_only", empty_stylebox)
-	#line_edit.add_theme_stylebox_override("read_only", Util.get_stylebox(&"normal", &"LineEdit"))
-	#line_edit.theme_type_variation = &"TreeLineEdit"
+
 	titlebar_hbox.add_child(line_edit)
 	line_edit.editing_toggled.connect(_on_line_edit_editing_toggled)
-	#line_edit.text_submitted.connect(_on_line_edit_text_submitted)
-	^"theme_override_styles/read_only"
-	
 	
 	titlebar_hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
 	titlebar_hbox.add_child(icon_rect)
@@ -131,12 +119,26 @@ func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	label = Label.new()
 	label.text = " " if text.is_empty() else text
 	add_child(label)
-	
-	#scaling_menus = true
-	menu = PopupMenu.new()
-	add_child(menu)
 
-		
+
+func get_component_class() -> StringName:
+	return component.get_script().get_global_name() if component else &""
+
+func prompt_change_type() -> void:
+	EditorInterface.popup_create_dialog(change_type, &"RationalComponent", "", 
+			"Change Component Type", [])
+
+func change_type(script_path: StringName) -> void:
+	print("CHANGE TYPE: %s" % script_path)
+	if not script_path: return
+	assert(component != null, "Cannot change type of null.")
+	assert(Util.script_path_is_valid(script_path), "Invalid script path: %s" % script_path)
+	var script: Script = ResourceLoader.load(script_path, "GDScript")
+	component.set_script(script)
+	
+	#if _class == get_component_class() or not Util.class_is_valid(_class): return
+	print("Type Changed...")
+
 func rename() -> void:
 	set_editable(true)
 	line_edit.edit()
@@ -162,32 +164,11 @@ func _on_line_edit_editing_toggled(is_editing: bool) -> void:
 
 
 func _ready() -> void:
-	Util.add_menu_item(menu, "Rename", &"Rename", &"rename", null, ITEM_RENAME)
-	shortcuts[Util.get_shortcut(&"rename")] = rename
-	
-	#menu.add_icon_item(get_theme_icon(&"Rename", &"EditorIcons"), "Rename", ITEM_RENAME, )
-	#menu.set_item_shortcut(menu.item_count -1, Util.get_shortcut("rename"))
-	
-	menu.add_icon_item(get_theme_icon(&"RotateLeft", &"EditorIcons"), "Change Type...", ITEM_CHANGE_TYPE)
-	menu.set_item_shortcut(menu.item_count -1, Util.get_shortcut("change_type"))
-	
-	menu.add_separator("")
-	menu.add_icon_item(get_theme_icon(&"NewRoot", &"EditorIcons"), "Save as Root", ITEM_MAKE_ROOT)
-	menu.set_item_shortcut(menu.item_count -1, Util.get_shortcut("change_type"))
-	
-	menu.id_pressed.connect(_on_menu_pressed)
-	
 	add_theme_color_override("close_color", Color.TRANSPARENT)
 	add_theme_icon_override("close", ImageTexture.new())
 	
-	
-	
 	title_label.add_theme_color_override("font_color", Color.WHITE)
 	var title_font: Font = Util.get_font(&"main", &"EditorFonts").duplicate()
-	#if title_font is FontVariation:
-		#title_font.variation_embolden = 1.0
-	#elif title_font is FontFile:
-		#title_font.font_weight = 600
 	title_label.add_theme_font_override("font", title_font)
 	line_edit.add_theme_font_override("font", title_font)
 	
@@ -198,37 +179,6 @@ func _ready() -> void:
 	_on_size_changed.call_deferred()
 
 
-func _on_menu_pressed(id: int) -> void:
-	print("Menu Item Pressed: %s" % menu.get_item_text(id))
-	match id:
-		ITEM_RENAME:
-			rename()
-	
-
-func _gui_input(event: InputEvent) -> void:
-	if not event.is_pressed() or event.is_echo(): return
-	
-	if event is InputEventMouseButton:
-		match event.button_index:
-			MOUSE_BUTTON_LEFT:
-				if not event.double_click or not titlebar_hbox.get_rect().has_point(event.position): return
-				accept_event()
-				rename()
-			
-			MOUSE_BUTTON_RIGHT when not MOUSE_BUTTON_MASK_RIGHT & event.button_mask:
-				accept_event()
-				selected = true
-				if not event.shift_pressed and not event.ctrl_pressed:
-					request_selection.emit()
-				menu.position = get_viewport().position + Vector2i(event.global_position)
-				menu.popup()
-
-func _shortcut_input(event: InputEvent) -> void:
-	if not event.is_pressed() or event.is_echo(): return
-	for sc in shortcuts:
-		if sc.matches_event(event):
-			accept_event()
-			shortcuts[sc].call()
 
 
 func _draw_port(slot_index: int, port_position: Vector2i, left: bool, color: Color) -> void:
@@ -237,19 +187,9 @@ func _draw_port(slot_index: int, port_position: Vector2i, left: bool, color: Col
 	const ANGLE_UP: float = PI/2.0
 	const ANGLE_DOWN: float = 3.0/2.0 * PI
 	const ANGLE_OFFSET: float = 0.2
-	var tex: Texture2D = get_theme_icon(&"GuiGraphNodePort", &"EditorIcons")
-	var sz:= tex.get_size()
-	#var rect: Rect2 = Rect2(- sz.x / 2.0 * float(), tex.get_size())
 	if horizontal:
 		if left and is_slot_enabled_left(0):
-			print(sz)
-			var src_rect: Rect2 = Rect2(0, 0, tex.get_width()/2.0, tex.get_height())
-			var start := Vector2(0, size.y/2.0) - tex.get_size()/2.0
-			var rect:= Rect2(start, src_rect.size)
-			#Rect2(0, size.y/2.0 - src_rect.size.y/2.0, 0, 0)
-			draw_texture_rect_region(tex, rect, src_rect, Color.REBECCA_PURPLE,)
-			#draw_circle(Vector2(0, size.y / 2), radius, color,)
-			#draw_arc(Vector2(0, size.y / 2), radius/2.0, ANGLE_DOWN + ANGLE_OFFSET, ANGLE_UP - ANGLE_OFFSET , POINT_COUNT, color, radius, true)
+			draw_arc(Vector2(0, size.y / 2), radius/2.0, ANGLE_DOWN + ANGLE_OFFSET, ANGLE_UP - ANGLE_OFFSET , POINT_COUNT, color, radius, true)
 		elif not left and is_slot_enabled_right(0):
 			draw_arc(Vector2(size.x, size.y / 2), radius/2.0, -ANGLE_UP - ANGLE_OFFSET, ANGLE_UP + ANGLE_OFFSET, POINT_COUNT, color, radius, true)
 	else:
@@ -258,42 +198,42 @@ func _draw_port(slot_index: int, port_position: Vector2i, left: bool, color: Col
 		elif not left and is_slot_enabled_right(0):
 			draw_arc(Vector2(size.x / 2, size.y), radius/2.0, - ANGLE_OFFSET, PI + ANGLE_OFFSET, POINT_COUNT, color, radius, true)
 
+## For GraphEdit use.
+func get_titlebar_rect() -> Rect2:
+	return Rect2(position + titlebar_hbox.position, titlebar_hbox.size)
 
-func get_custom_input_port_position(horizontal: bool) -> Vector2:
+func get_input_position() -> Vector2:
 	return Vector2(0, size.y / 2) if horizontal else Vector2(size.x / 2, 0)
 
-func get_custom_output_port_position(horizontal: bool) -> Vector2:
+func get_output_position() -> Vector2:
 	return Vector2(size.x, size.y / 2) if horizontal else Vector2(size.x / 2, size.y)
 
+func get_port_position(left: bool) -> Vector2:
+	return get_input_position() if left else get_output_position()
 
 func set_status(status: int) -> void:
 	match status:
-		0: _set_stylebox_overrides(frames.panel_success, frames.titlebar_success)
-		1: _set_stylebox_overrides(frames.panel_failure, frames.titlebar_failure)
-		2: _set_stylebox_overrides(frames.panel_running, frames.titlebar_running)
-		_: _set_stylebox_overrides(frames.panel_normal, frames.titlebar_normal)
+		0: set_stylebox_overrides(frames.panel_success, frames.titlebar_success)
+		1: set_stylebox_overrides(frames.panel_failure, frames.titlebar_failure)
+		2: set_stylebox_overrides(frames.panel_running, frames.titlebar_running)
+		_: set_stylebox_overrides(frames.panel_normal, frames.titlebar_normal)
 
 
-## Left == parent port. Right == child(s) port.
+## Left == parent port. Right == children port.
 func set_slots(left_enabled: bool, right_enabled: bool) -> void:
 	set_slot(0, left_enabled, 0, Color.WHITE, right_enabled, 0, Color.WHITE)
-
-
-func set_color(color: Color) -> void:
-	set_slot_color_left(0, color)
-	set_slot_color_right(0, color)
 
 
 func update_display() -> void:
 	title_text = component.resource_name if component else ""
 	icon = Util.comp_get_icon(component)
 	name = str(component.get_instance_id())
-	tooltip_text = "ID: %s" % (component.get_instance_id() if component else "INVALID")
 
 
 func set_component(val: RationalComponent) -> void:
 	if component:
 		component.changed.disconnect(_on_component_changed)
+		component.script_changed.disconnect(_on_component_script_changed)
 		component.children_changed.disconnect(component_children_changed.emit)
 	
 	component = val
@@ -302,10 +242,16 @@ func set_component(val: RationalComponent) -> void:
 	
 	if component:
 		component.changed.connect(_on_component_changed)
+		component.script_changed.connect(_on_component_script_changed, CONNECT_DEFERRED)
 		component.children_changed.connect(component_children_changed.emit)
 
 
-func _set_stylebox_overrides(panel_stylebox: StyleBox, titlebar_stylebox: StyleBox) -> void:
+func set_color(color: Color) -> void:
+	set_slot_color_left(0, color)
+	set_slot_color_right(0, color)
+
+
+func set_stylebox_overrides(panel_stylebox: StyleBox, titlebar_stylebox: StyleBox) -> void:
 	if not has_theme_stylebox_override("panel") or panel_stylebox != frames.panel_normal:
 		if panels_tween:
 			panels_tween.kill()
@@ -341,6 +287,10 @@ func _on_size_changed():
 func _on_component_changed() -> void:
 	update_display()
 
+func _on_component_script_changed() -> void:
+	set_slots(component != get_parent().get_root_component(), component is Composite)
+	update_display() 
+
 func _draw() -> void:
 	if not is_drawing_index: return
 	var font: Font = title_label.get_theme_font(&"font")
@@ -352,8 +302,12 @@ func _draw() -> void:
 	draw_string_outline(font, pos, txt, 0, -1, font_size, 4)
 	draw_string(font, pos, txt, 0, -1, font_size)
 
-#func _get_tooltip(at_position: Vector2) -> String:
-	#return "ID: %s" % component.get_instance_id() if component else "INVALID"
+func _get_tooltip(at_position: Vector2) -> String:
+	if not component: 
+		return ""
+	if icon_rect.get_rect().has_point(at_position - icon_rect.position):
+		return get_component_class()
+	return "ID: %s" % component.get_instance_id()
 
 func set_horizontal(val: bool) -> void:
 	horizontal = val

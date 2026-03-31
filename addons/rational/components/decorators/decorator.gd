@@ -29,12 +29,6 @@ func move_child(child: RationalComponent, to_index: int = -1) -> void:
 	assert(children.size() < 2, "Decorator should not have more than 1 child.")
 
 
-func get_class_name() -> Array[StringName]:
-	var names: Array[StringName] = super()
-	names.push_back(&"Decorator")
-	return names
-
-
 func _validate_property(property: Dictionary) -> void:
 	if property.name == &"children":
 		property.usage &= ~PROPERTY_USAGE_EDITOR

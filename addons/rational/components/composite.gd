@@ -10,13 +10,16 @@ class_name Composite extends RationalComponent
 @abstract func _tick(delta: float, board: Blackboard, actor: Node) -> int
 
 func can_parent(child: RationalComponent) -> bool:
-	return not child or not child.has_child(self, true) 
+	return not child or (child != self and not child.has_child(self, true))
 
 
 func add_child(child: RationalComponent, idx: int = -1) -> void:
 	if not child or not can_parent(child): return
 	
-	if has_child(child):
+	if child.has_child(self, true):
+		child = child.duplicate(true) # Need to replace self with duplicate
+	
+	elif has_child(child):
 		child = child.duplicate()
 	
 	if -1 < idx and idx < get_child_count():
@@ -59,16 +62,9 @@ func set_children(val: Array[RationalComponent]) -> void:
 	children_changed.emit()
 	notify_tree_changed()
 
-# NOTE: Overriding since children can contain null.
-
-func get_child_index(child: RationalComponent) -> int:
-	return children.find(child)
-
 func get_child(idx: int) -> RationalComponent:
+	assert(abs(idx) < children.size(), "Child index out of bounds.")
 	return children[idx]
-
-func get_child_count() -> int:
-	return children.size()
 
 
 func move_child(child: RationalComponent, to_index: int = -1) -> void:
@@ -85,9 +81,9 @@ func setup(actor: Node, board: Blackboard) -> void:
 	for child: RationalComponent in children:
 		child.setup(actor, board)
 
-
-func _get_configuration_warnings() -> PackedStringArray:
-	return PackedStringArray(["Children empty"]) if children.is_empty() else PackedStringArray()
+#
+#func _get_configuration_warnings() -> PackedStringArray:
+	#return PackedStringArray(["Children empty"]) if children.is_empty() else PackedStringArray()
 
 
 func get_children(recursive: bool = false) -> Array[RationalComponent]:
@@ -102,9 +98,3 @@ func get_children(recursive: bool = false) -> Array[RationalComponent]:
 			result += child.get_children(recursive)
 			
 	return result
-
-
-func get_class_name() -> Array[StringName]:
-	var names: Array[StringName] = super()
-	names.push_back(&"Composite")
-	return names

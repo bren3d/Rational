@@ -15,7 +15,6 @@ func _run() -> void:
 	const PATH:= "res://TestScene/test_scene_character.tscn::Resource_k2f85"
 	var scene:= EditorInterface.get_edited_scene_root()
 	
-	
 	var plugin: EditorPlugin = Engine.get_singleton(&"Rational")
 	var cache: Cache = plugin.cache
 	
@@ -25,36 +24,14 @@ func _run() -> void:
 	var create_popup: Window = main.graph_edit.popup
 	
 	var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
-	graph_edit.get_menu_hbox().print_tree_pretty()
-	#for node in graph_edit.get_menu_hbox().get_children():
-		#if node is BaseButton:
-			#printt(node.get_tooltip(), node.icon.get_size(), node.size)
+	var data: RootData = cache.get_data_list().front()
+	var comp: RationalComponent = data.root
+	print(comp, comp.get_script().get_base_script().get_global_name())
 	
-	#var paths:= Settings.get_shortcut_paths()
-	#for path: String in paths:
-		#print("\"%s\": \"%s\"" % [paths[path].trim_prefix("rational/"), path])
-	#
-	#for setti
-	#var list:= RationalEditorSettings.get_shortcut_list()
-	#for path in list:
-		#print("%s => %s" % [path, list[path]])
-	
-	#write_file("\n".join(RationalEditorSettings.get_shortcut_path_list()))
-	
-	# String = "\n".join(editor_settings.get_shortcut_list())
-	#
-	#graph_edit.init_shortcuts()
-	#plugin.window_wrapper.window.show()
-	
-	#printt("ProjectSettings/balls".get_slice("/", 1))
 
 
 func print_cache(c: Cache) -> void:
-	printt("Paths: ", " | ".join(c.path_list))
-	var root_names: PackedStringArray
-	#for root in c.root_list:
-		#root_names.push_back(root.resource_name)
-	printt("Roots: ", " | ".join(root_names))
+	printt("Paths:\n —", "\n —".join(c.path_list))
 
 
 func write_file(text: String, path: String = "res://temp.txt") -> void:

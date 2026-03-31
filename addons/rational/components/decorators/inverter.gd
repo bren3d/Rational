@@ -2,10 +2,9 @@
 class_name Inverter extends Decorator
 ## [Decorator] that will return the opposite status of its child unless the child returns [member RUNNING].
 
-
 func _no_tick(delta: float, board: Blackboard, actor: Node) -> int:
 	if children.is_empty():
-		return FAILURE
+		return SUCCESS
 	return children[0].no_tick(delta, board, actor)
 
 func _tick(delta: float, board: Blackboard, actor: Node) -> int:

@@ -64,10 +64,6 @@ func set_disabled(val: bool) -> void:
 	else:
 		tree_enabled.emit()
 
-
-func get_class_name() -> Array[StringName]:
-	return [&"RationalTree"]
-
 func _property_can_revert(property: StringName) -> bool:
 	match property:
 		&"actor": return actor == get_parent()

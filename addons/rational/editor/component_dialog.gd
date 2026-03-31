@@ -12,10 +12,8 @@ const TITLE_DEFAULT: String = "Create Rational Node"
 
 const ClassData := preload("../data/rational_class_data.gd")
 
-enum {MODE_INVALID, MODE_CREATE, MODE_NEW_ROOT, MODE_SELECT_CLASS,}
-
 signal class_selected(_class: StringName)
-signal root_created(root: RationalComponent)
+#signal root_created(root: RationalComponent)
 signal node_created(node: RationalComponent)
 
 @export var tree: Tree
@@ -23,21 +21,11 @@ signal node_created(node: RationalComponent)
 @export var line_edit: LineEdit
 @export var menu_button: MenuButton
 
-#var is_creating_root: bool = false:
-	#set(val):
-		#if is_creating_root == val: return
-		#is_creating_root = val
-		#title = "Create Root Node" if val else "Create Rational Node"
-
 var class_data: ClassData
 
-var dialog_mode: int = MODE_INVALID: set = set_dialog_mode
+#var exclude_filters: PackedStringArray
+var active_callback: Callable
 
-func set_dialog_mode(val: int) -> void:
-	dialog_mode = val
-	match dialog_mode:
-		MODE_CREATE:
-			title = "Create Rational Node"
 
 func _init() -> void:
 	hide()
@@ -47,56 +35,42 @@ func _init() -> void:
 	canceled.connect(_on_canceled)
 	visibility_changed.connect(_on_visibility_changed, CONNECT_DEFERRED)
 	title = TITLE_DEFAULT
+	about_to_popup.connect(_on_about_to_popup, CONNECT_DEFERRED)
+	min_size = Vector2i(300, 500) * EditorInterface.get_editor_scale()
 
 
 func _ready() -> void:
-	#refresh_tree()
-	
 	tree.item_selected.connect(_on_tree_item_selected)
 	tree.item_activated.connect(_on_item_activated)
 	line_edit.text_changed.connect(_on_filter_changed)
 	description_label.meta_clicked.connect(_on_meta_clicked)
-	menu_button.get_popup().id_pressed.connect(_on_menu_button_id_pressed)
-	
-	
-	
-	min_size = Vector2i(300, 500) * EditorInterface.get_editor_scale()
 	description_label.custom_minimum_size.y = 100.0 * EditorInterface.get_editor_scale()
+	menu_button.get_popup().id_pressed.connect(_on_menu_button_id_pressed)
 
-
-func open(_mode: int) -> void:
+## [param callback] should accept a single StringName as an argument. Moves [param at_position] down by title height.
+func open(at_position: Vector2 = Vector2.ZERO, callback: Callable = Callable()) -> void:
 	if visible: return
+	if not about_to_popup.is_connected(_on_about_to_popup):
+		about_to_popup.connect(_on_about_to_popup, CONNECT_DEFERRED)
+	position = at_position
+	active_callback = callback
+	popup()
+
+
+#func open_position(at_position: Vector2, callback: Callable = Callable()) -> void:
+	#if visible: return
+	#position = at_position
+	#open(callback)
+
+#func open_centered(callback: Callable = Callable()) -> void:
+	#if visible: return
+	#active_callback = callback
+	#popup_centered()
+	#popup_centered_ratio()
 	
-	#is_creating_root = is_new_root
-	
-	popup_at_position(get_mouse_position())
 
-func open_at_position(_mode: int, at_position: Vector2 = Vector2.ZERO) -> void:
-	pass
-
-
-func create_node(node_class: StringName) -> void:
-	var script: Script = class_data.class_get_script(node_class)
-	
-	if not script:
-		printerr("Could not find script for class '%s'." % node_class)
-		return
-		
-	if script.is_abstract():
-		printerr("Cannot instance abstract class '%s'." % node_class)
-		return
-	
-	var node: RationalComponent = script.new()
-	node.resource_name = node_class
-	
-	match dialog_mode:
-		MODE_NEW_ROOT:
-			root_created.emit(node)
-		_, MODE_CREATE:
-			node_created.emit(node)
-
-
-
+func popup_at_position(at_position: Vector2) -> void:
+	popup(Rect2(at_position, size))
 
 func add_class_item(_class: StringName, parent: TreeItem = null) -> void:
 	var item: TreeItem = tree.create_item(parent)
@@ -137,20 +111,17 @@ func _on_tree_item_selected() -> void:
 
 
 func _on_confirmed() -> void:
-	var item: TreeItem = tree.get_selected()
-	if not item: return
-	
-	# TODO: ADD INVALID CHECK
-	
-	if dialog_mode == MODE_SELECT_CLASS:
-		class_selected.emit(item.get_text(0))
-		return
-		
-	create_node(item.get_text(0))
+	var selected_class: StringName = get_selected_class()
+	if not selected_class:
+		return 
+	if active_callback:
+		active_callback.call(selected_class)
+	class_selected.emit(selected_class)
+	#create_node(item.get_text(0))
 
 
 func _on_canceled() -> void:
-	dialog_mode = MODE_INVALID
+	pass
 
 
 func _on_visibility_changed() -> void:
@@ -158,19 +129,13 @@ func _on_visibility_changed() -> void:
 		line_edit.clear()
 		line_edit.edit()
 	else:
-		set_dialog_mode.call_deferred(MODE_INVALID)
+		active_callback = Callable()
 
-
-func popup_at_position(at_position: Vector2) -> void:
+func _on_about_to_popup() -> void:
 	var window_rect: Rect2 = get_tree().root.get_visible_rect()
-	var titlebar_height: int = DisplayServer.window_get_title_size(title, DisplayServer.get_window_at_screen_position(position)).y
-	popup(Rect2(
-		clampi(at_position.x, window_rect.position.x, window_rect.end.x - size.x),
-		clampi(at_position.y, window_rect.position.y + titlebar_height , window_rect.end.y - size.y + titlebar_height),
-		size.x,
-		size.y
-	))
-
+	var titlebar_height: int = get_theme_constant(&"title_height")
+	position.x = clampi(position.x, window_rect.position.x, window_rect.end.x - size.x)
+	position.y = clampi(position.y, window_rect.position.y + titlebar_height , window_rect.end.y - size.y + titlebar_height)
 
 func item_apply_filter(item: TreeItem, filter_text: String) -> bool:
 	var item_contains_filter: bool = filter_text == "" or item.get_text(0).containsn(filter_text)
@@ -186,7 +151,11 @@ func item_apply_filter(item: TreeItem, filter_text: String) -> bool:
 	
 	return item.visible
 
+func get_selected_class() -> StringName:
+	return tree.get_selected().get_text(0) if tree and tree.get_selected() else &""
+
 func _on_filter_changed(txt: String) -> void:
+	if not tree or not tree.get_root(): return
 	for item: TreeItem in tree.get_root().get_children():
 		item_apply_filter(item, txt)
 
@@ -208,7 +177,7 @@ func _on_menu_button_id_pressed(id: int) -> void:
 func _on_theme_changed() -> void:
 	line_edit.right_icon = get_theme_icon(&"Search", &"EditorIcons")
 	menu_button.icon = get_theme_icon(&"Modifiers", &"EditorIcons")
-	tree.add_theme_constant_override(&"icon_max_width", line_edit.right_icon.get_width())
+	tree.add_theme_constant_override(&"icon_max_width", 16.0 * EditorInterface.get_editor_scale())
 
 func set_cache(cache: Object) -> void:
 	class_data = cache.class_data

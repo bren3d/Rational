@@ -13,8 +13,3 @@ func _tick(delta: float, board: Blackboard, actor: Node) -> int:
 		var status: int = child.tick(delta, board, actor)
 		if status != FAILURE: return status
 	return SUCCESS
-
-func get_class_name() -> Array[StringName]:
-	var names: Array[StringName] = super()
-	names.push_back(&"Fallback")
-	return names

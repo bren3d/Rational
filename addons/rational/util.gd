@@ -1,7 +1,6 @@
 @tool
 ##
 
-#const Cache := preload("data/cache.gd")
 #const ClassData := preload("data/rational_class_data.gd")
 #const ShortcutData := preload("data/shortcut_data.gd")
 
@@ -14,14 +13,27 @@ static func get_cache() -> Object:
 static func get_class_data() -> Object:
 	return get_cache().class_data
 
-#static func get_shortcut_data() -> Object:
-	#return get_cache().shortcut_data
-
 static func get_main_editor() -> Object:
 	return get_plugin().editor
 
 static func comp_get_icon(component: Object) -> Texture2D:
 	return get_class_data().comp_get_icon(component)
+
+static func comp_get_class(component: Object) -> StringName:
+	return get_class_data().comp_get_class(component)
+
+static func class_get_script(_class: StringName) -> Script:
+	return get_class_data().class_get_script(_class)
+
+static func instantiate_class(_class: StringName) -> Object:
+	return get_class_data().instantiate_class(_class)
+
+static func class_is_valid(_class: StringName) -> bool:
+	return  get_class_data().class_is_valid(_class)
+
+## Verifies the script inherets from [RationalComponent].
+static func script_path_is_valid(path: String) -> bool:
+	return get_class_data().script_path_is_valid(path)
 
 #region Theme
 
@@ -34,19 +46,12 @@ static func get_font(name: StringName, theme_type: StringName = &"EditorFonts") 
 static func get_stylebox(name: StringName, theme_type: StringName = &"EditorStyles") -> StyleBox:
 	return EditorInterface.get_editor_theme().get_stylebox(name, theme_type)
 
+static func get_icon_max_width() -> int:
+	return int(16.0 * EditorInterface.get_editor_scale())
+
 #endregion Theme
 
 #region Helpers
-
-static func add_menu_item(menu: PopupMenu, label: String, icon: StringName = &"", shortcut: StringName = "", metadata: Variant = null, id: int = -1) -> void:
-	menu.add_item(label, id)
-	if icon:
-		menu.set_item_icon(menu.item_count - 1, get_icon(icon))
-	if shortcut:
-		menu.set_item_shortcut(menu.item_count - 1, get_shortcut(shortcut))
-	if metadata != null:
-		menu.set_item_metadata(menu.item_count - 1, metadata)
-
 
 static func generate_unique_name(initial_name: String, name_list: PackedStringArray) -> String:
 	if not initial_name: 
@@ -69,13 +74,25 @@ static func generate_unique_name(initial_name: String, name_list: PackedStringAr
 	
 	return result
 
-static func get_accel(name: String) -> Key:
-	var shortcut: Shortcut = get_shortcut(name)
+static func add_menu_item(menu: PopupMenu, label: String, icon: StringName = &"", shortcut: StringName = "", metadata: Variant = null, id: int = -1) -> void:
+	menu.add_item(label, id)
+	if icon:
+		menu.set_item_icon(menu.item_count - 1, get_icon(icon))
 	if shortcut:
-		for event in shortcut.events:
+		menu.set_item_shortcut(menu.item_count - 1, get_shortcut(shortcut))
+		menu.set_item_accelerator(menu.item_count - 1, get_accel(shortcut))
+	if metadata != null:
+		menu.set_item_metadata(menu.item_count - 1, metadata)
+
+static func shortcut_get_accel(shortcut: Shortcut) -> Key:
+	if shortcut:
+		for event: InputEvent in (shortcut.events if shortcut else []):
 			if event is InputEventKey:
 				return event.get_keycode_with_modifiers()
 	return KEY_NONE
+
+static func get_accel(name: String) -> Key:
+	return shortcut_get_accel(get_shortcut(name))
 
 static func get_shortcut(name: StringName) -> Shortcut:
 	match name:
@@ -115,8 +132,22 @@ static func get_shortcut(name: StringName) -> Shortcut:
 			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/change_node_type")
 		&"save_as_root", &"save_comp_as_root", &"as_root": 
 			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/save_branch_as_scene")
+		&"cut":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/cut_node")
+		&"copy":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/copy_node")
+		&"paste":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/paste_node")
+		&"delete":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/delete")
+		&"delete_no_confirm":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/delete_no_confirm")
 		&"make_root", &"create_root": 
 			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/make_root")
+		&"add_child_node", &"add_child":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/add_child_node")
+		&"instantiate_child", &"instantiate_component", &"instantiate_root":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/instantiate_scene")
 		&"toggle_grid": 
 			return EditorInterface.get_editor_settings().get_shortcut("canvas_item_editor/toggle_grid")
 		&"use_grid_snap": 
@@ -133,4 +164,7 @@ static func get_shortcut(name: StringName) -> Shortcut:
 			return EditorInterface.get_editor_settings().get_shortcut("canvas_item_editor/zoom_plus")
 		_ when "zoom_percent".is_subsequence_of(name):
 			return EditorInterface.get_editor_settings().get_shortcut("canvas_item_editor/%s" % name)
+	push_warning("No shortcut found: '%s'" % name)
 	return null
+
+#endregion Helpers

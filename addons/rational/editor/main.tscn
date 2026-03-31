@@ -105,7 +105,6 @@ theme_type_variation = &"EditorSectionContainer"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_type_variation = &"TreeLineEdit"
 placeholder_text = "Filter Roots"
 clear_button_enabled = true
 right_icon = SubResource("DPITexture_hsmtw")
@@ -155,7 +154,6 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_type_variation = &"TreeLineEdit"
 placeholder_text = "Filter Components"
 right_icon = SubResource("DPITexture_hsmtw")
 
@@ -247,7 +245,7 @@ custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 size_flags_vertical = 3
 theme_type_variation = &"TreeTable"
-theme_override_constants/icon_max_width = 16
+theme_override_constants/icon_max_width = 24
 enable_drag_unfolding = false
 hide_root = true
 

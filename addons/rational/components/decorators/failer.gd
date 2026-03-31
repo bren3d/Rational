@@ -9,8 +9,3 @@ func _no_tick(delta: float, board: Blackboard, actor: Node) -> int:
 
 func _tick(delta: float, board: Blackboard, actor: Node) -> int:
 	return FAILURE
-
-func get_class_name() -> Array[StringName]:
-	var names: Array[StringName] = super()
-	names.push_back(&"Failer")
-	return names

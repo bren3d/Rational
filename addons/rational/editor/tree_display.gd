@@ -71,6 +71,7 @@ func add_component(comp: RationalComponent, parent: TreeItem = null, recursive: 
 	const SIGNAL_NAME: String = "changed"
 	item.add_user_signal(SIGNAL_NAME)
 	comp.changed.connect(item.emit_signal.bind(SIGNAL_NAME))
+	comp.script_changed.connect(item.emit_signal.bind(SIGNAL_NAME))
 	item.connect(SIGNAL_NAME, _on_item_changed, CONNECT_APPEND_SOURCE_OBJECT)
 	
 	if not recursive:

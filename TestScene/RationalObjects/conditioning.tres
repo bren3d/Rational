@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="ConditionLeaf" format=3 uid="uid://h1f0ypela1m1"]
+
+[ext_resource type="Script" uid="uid://bktdpfgt2g20l" path="res://addons/rational/components/condition.gd" id="1_84ahm"]
+
+[resource]
+script = ExtResource("1_84ahm")
+condition = "not board.has(\"Some dumb key\")"
+metadata/_custom_type_script = "uid://bktdpfgt2g20l"
