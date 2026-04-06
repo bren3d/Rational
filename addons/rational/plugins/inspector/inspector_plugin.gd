@@ -2,14 +2,15 @@
 extends EditorInspectorPlugin
 
 const Cache:= preload("../../data/cache.gd")
+const Util := preload("../../util.gd")
 
 var cache: Cache
 
 var is_editing_component: bool = false
 var is_editing_tree: bool = false
 
-func set_cache(val: Cache) -> void:
-	cache = val
+func _init() -> void:
+	cache = Util.get_cache()
 
 func _can_handle(object: Object) -> bool:
 	return object is RationalTree
@@ -26,14 +27,7 @@ func _parse_property(object: Object, type: Variant.Type, name: String, hint_type
 		
 		return true
 	
-	#if is_editing_tree and name == "disabled":
-		#for eprop: EditorProperty in EditorInterface.get_inspector().find_children("*", "EditorProperty", true, false):
-			#if eprop.get_edited_property() != &"blackboard": continue
-			#eprop.resource_selected.connect(func(p: String, res: Resource): print("Path: %s | Resource: %s" %[p, res]))
-			#eprop.object_id_selected.connect(func(p: StringName, id: int): print("Path: %s | Resource: %s" %[p, id]))
-		
-	
-	return false #type == TYPE_OBJECT and hint_string == ""
+	return false
 
 func update_node_path(node: Node, property: String) -> void:
 	var data: RootData = cache.root_get_data(node.get(property))
@@ -62,13 +56,12 @@ func _on_edit_component_button_pressed(comp: RationalComponent) -> void:
 
 
 func _on_edit_tree_pressed(object: Object, property: String) -> void:
-	update_node_path(object, property)
 	Engine.get_meta(&"Main").edit_root(object.get(property)) 
+	update_node_path.call_deferred(object, property)
 
 func _on_root_changed(root: Resource, object: Object, property: String) -> void:
 	if object is Node:
 		update_node_path(object, property)
-	#object.owner.get_path_to(object)
 
 func _parse_begin(object: Object) -> void:
 	is_editing_tree = object is RationalTree
@@ -78,13 +71,6 @@ func _parse_begin(object: Object) -> void:
 		var button: Button = create_button()
 		button.pressed.connect(_on_edit_component_button_pressed.bind(object))
 		button.pressed.connect(Engine.get_meta(&"Main").edit.bind(object), CONNECT_DEFERRED)
-
-
-func _parse_category(object: Object, category: String) -> void:
-	pass
-	#if object is RationalComponent and not ClassDB.class_exists(category):
-		#var button: Button = create_button()
-		#button.pressed.connect(_on_edit_component_button_pressed.bind(object))
 
 
 func _on_editor_property_changed(property: StringName, value: Variant, field: StringName, changing: bool, picker: EditorResourcePicker) -> void:
@@ -146,7 +132,7 @@ func create_button() -> Button:
 
 
 func create_margin_container(child_control: Control = null, margins: Vector2 = Vector2(4, 4), ) -> MarginContainer:
-	margins * EditorInterface.get_editor_scale()
+	margins *= EditorInterface.get_editor_scale()
 	var margin_container := MarginContainer.new()
 	margin_container.add_theme_constant_override("margin_left", margins.x)
 	margin_container.add_theme_constant_override("margin_right", margins.x)

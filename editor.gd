@@ -9,25 +9,66 @@ const Main := preload("res://addons/rational/editor/main.gd")
 const TreeDisplay := preload("res://addons/rational/editor/tree_display.gd")
 const GraphEditor := preload("res://addons/rational/editor/graph_edit.gd")
 const Settings := preload("res://addons/rational/settings.gd")
+const ActionHandle := preload("res://addons/rational/editor/action_handle.gd")
+
+enum {
+	ITEM_NONE = 0,
+	ITEM_ADD_CHILD = 1, 
+	ITEM_CUT = 2, 
+	ITEM_COPY = 4, 
+	ITEM_PASTE = 8, 
+	ITEM_DUPLICATE = 16, 
+	ITEM_RENAME = 32, 
+	ITEM_CHANGE_TYPE = 64, 
+	ITEM_SAVE_AS_ROOT = 128, 
+	ITEM_DOCUMENTATION = 256, 
+	ITEM_DELETE = 512,
+	ITEM_ADD_NODE_HERE = 1024,
+	ITEM_INSTANTIATE_NODE_HERE = 2048,
+	ITEM_INSTANTIATE_NODE = 4096,
+	ITEM_PASTE_HERE = 8192,
+	
+	ITEM_ALL = 4294967295,
+}
 
 func _run() -> void:
 	print("Running...")
-	const PATH:= "res://TestScene/test_scene_character.tscn::Resource_k2f85"
+	#const PATH:= "res://TestScene/test_scene_character.tscn::Resource_k2f85"
 	var scene:= EditorInterface.get_edited_scene_root()
-	
+	#
+	if not Engine.has_singleton(&"Rational"): return
 	var plugin: EditorPlugin = Engine.get_singleton(&"Rational")
 	var cache: Cache = plugin.cache
+	var main: Main = plugin.editor
 	
-	var main: Main = Engine.get_meta(&"Main")
+	var root_file_tree: TreeDisplay = main.root_file_tree
 	var tree_display: TreeDisplay = main.tree_display
 	var graph_edit: GraphEditor = main.graph_edit
-	var create_popup: Window = main.graph_edit.popup
 	
-	var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
-	var data: RootData = cache.get_data_list().front()
-	var comp: RationalComponent = data.root
-	print(comp, comp.get_script().get_base_script().get_global_name())
+	#var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
+	#var data: RootData = cache.get_data_list().front()
+	#var comp: RationalComponent = data.root
+	#print(comp, comp.get_script().get_base_script().get_global_name())
+	#var options:= ITEM_ALL
+	#options &= ~(ITEM_PASTE | ITEM_SAVE_AS_ROOT | ITEM_ADD_CHILD)
+	#var foo: int = (graph_edit.ITEMS_DEFAULT ^ graph_edit.ITEM_CHANGE_TYPE)
+	#printt(foo, bool(foo & graph_edit.ITEM_CHANGE_TYPE))
+	#EditorInterface.set_plugin_enabled("Rational", false)
+	#print(EditorInterface.set_plugin_enabled("Rational", false))
+	#for i in 32:
+		#print(1 << i)
+	var arr: Array = [0, 1, 2, 3]
 	
+	#var from_index: int = 3
+	#var to_index: int = wrapi(-4, 0, arr.size())
+	#
+	#var element =  arr.pop_at(from_index)
+	#arr.insert(to_index, element)
+	
+	#printt(bool(options & ITEM_PASTE), bool(options & ITEM_SAVE_AS_ROOT), bool(options & ITEM_ADD_CHILD),)
+	
+	#print("ACCUM: %d" % accum)
+	#print(0b1111111111111111)
 
 
 func print_cache(c: Cache) -> void:

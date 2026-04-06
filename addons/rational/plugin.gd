@@ -8,16 +8,18 @@ const WindowWrapper := preload("editor/window_wrapper.gd")
 const Editor := preload("editor/main.gd")
 
 const InpsectorPlugin := preload("plugins/inspector/inspector_plugin.gd")
+const ActionHandle := preload("editor/action_handle.gd")
 
 var inspector_plugin: InpsectorPlugin
 
 ## Cache for all RationalComponent resources. 
 var cache: Cache
 
+var action_handle: ActionHandle
+
 var window_wrapper: WindowWrapper
 var editor: Editor
 
-#region Enter/Exit
 
 func _enter_tree() -> void:
 	resource_saved.connect(_on_resource_saved)
@@ -25,10 +27,10 @@ func _enter_tree() -> void:
 	get_script_create_dialog().script_created.connect(_on_script_created)
 	
 	name = &"Rational"
-	
 	Engine.register_singleton(&"Rational", self)
 	
 	cache = Cache.new()
+	action_handle = ActionHandle.new()
 	
 	window_wrapper = WindowWrapper.new()
 	
@@ -42,7 +44,7 @@ func _enter_tree() -> void:
 	inspector_plugin.set_cache(cache)
 	add_inspector_plugin(inspector_plugin)
 	
-	print("Rational initialized")
+	print_rich("[b]Rational™ initialized[/b]")
 
 
 func _exit_tree() -> void:
@@ -54,31 +56,13 @@ func _exit_tree() -> void:
 	
 	cache.save()
 	cache = null
-
+	
+	action_handle = null
+	
 	Engine.set_meta(&"Main", null)
-	Engine.set_meta(&"RationalClassData", null)
-
+	
 	Engine.unregister_singleton(&"Rational")
 
-
-func _on_file_moved(old_file: String, new_file: String) -> void:
-	cache.update_path(old_file, new_file)
-
-func _on_resource_saved(res: Resource) -> void:
-	if res is RationalComponent:
-		cache.add_root(res)
-		print("Adding root... %s" % res)
-		print_rich("Resource saved: %s([color=yellow]%s[/color]) @ [color=pink]%s[/color]" % [res.resource_name, res, res.resource_path])
-
-func _on_script_created(script: Script) -> void:
-	if not script or not script.get_base_script(): return
-	if not Util.class_is_valid(script.get_base_script().get_global_name()):
-		print("Script doesn't extend RationalComponent")
-		return
-	
-	print("New script is tool: %s" % script.is_tool())
-	print("New script contains '@tool': %s" % script.source_code.containsn("@tool"))
-	
 
 func _handles(object: Object) -> bool:
 	return object is RationalTree and EditorInterface.get_inspector().get_edited_object() != object
@@ -108,3 +92,28 @@ func _on_scene_saved(filepath: String) -> void:
 
 func _save_external_data() -> void:
 	cache.save()
+
+
+#region Signal Methods 
+
+
+func _on_file_moved(old_file: String, new_file: String) -> void:
+	cache.update_path(old_file, new_file)
+
+func _on_resource_saved(res: Resource) -> void:
+	if res is RationalComponent:
+		cache.add_root(res)
+		print("Adding root... %s" % res)
+		print_rich("Resource saved: %s([color=yellow]%s[/color]) @ [color=pink]%s[/color]" % [res.resource_name, res, res.resource_path])
+
+## Adds '@tool' to RationalComponent Scripts that don't have it already.
+func _on_script_created(script: Script) -> void:
+	if not script or not script.get_base_script() or not Util.class_is_valid(script.get_base_script().get_global_name()):
+		print("Script '%s' doesn't extend RationalComponent" % script)
+		return
+	
+	print("New script is tool: %s" % script.is_tool())
+	print("New script contains '@tool': %s" % script.source_code.containsn("@tool"))
+
+
+#endregion Signal Methods 

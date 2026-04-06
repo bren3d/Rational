@@ -11,16 +11,17 @@ enum {SUCCESS, FAILURE, RUNNING}
 
 @export var root: RationalComponent: set = set_root
 
+# ALERT TBR DEBUG ONLY
+@export_custom(0, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY)
+var root_id: String:
+	get(): return root.resource_path.get_slice("::", 1) if root else "" 
+
 @export var actor: Node
 
 @export var blackboard: Blackboard
 
 @export var disabled: bool = true: set = set_disabled
 
-
-func _enter_tree() -> void:
-	if root and Engine.is_editor_hint():
-		root.set_meta(&"_path_data", {path = owner.get_path_to(self), property = "root"})
 
 func _ready() -> void:
 	if not Engine.is_editor_hint(): return
@@ -63,13 +64,13 @@ func set_disabled(val: bool) -> void:
 		tree_disabled.emit()
 	else:
 		tree_enabled.emit()
-
-func _property_can_revert(property: StringName) -> bool:
-	match property:
-		&"actor": return actor == get_parent()
-	return false
-
-func _property_get_revert(property: StringName) -> Variant:
-	match property:
-		&"actor": return get_parent()
-	return null
+#
+#func _get_property_list() -> Array[Dictionary]:
+	#return [{name = "root_path", type = TYPE_STRING, usage = PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY}]
+#
+#func _get(property: StringName) -> Variant:
+	#match property:
+		#&"root_path":
+			#return root.resource_path if root else ""
+	#return null
+##func 

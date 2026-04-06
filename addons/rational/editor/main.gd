@@ -3,10 +3,6 @@ extends PanelContainer
 
 const Util:= preload("../util.gd")
 const Cache:= preload("../data/cache.gd")
-#@export_tool_button("dkfjalk", "Back")
-
-signal request_floating
-
 
 @export var root_file_tree: Tree
 @export var tree_display: Tree
@@ -22,7 +18,7 @@ var file_dialog: EditorFileDialog
 var floating_window: Window
 
 var toggle_panel_shortcut: Shortcut
-#shortcuts[editor_settings.get_shortcut("canvas_item_editor/center_selection")]
+
 var shortcuts: Dictionary[Shortcut, Callable]
 
 var cache: Cache
@@ -31,7 +27,6 @@ var edited_tree: RootData:
 	get: return cache.edited_tree if cache else null
 
 var root_to_be_saved: RootData
-
 
 func _init() -> void:
 	file_dialog = EditorFileDialog.new()
@@ -45,9 +40,10 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	
 	panel_collapse_button.pressed.connect(_on_panel_collapse_pressed)
 	init_shortcuts()
-
+	
 
 func set_cache(_cache: Cache) -> void:
 	cache = _cache
@@ -109,10 +105,13 @@ func edit_root(root: RationalComponent) -> void:
 func init_shortcuts() -> void:
 	var editor_settings:= EditorInterface.get_editor_settings()
 	
-	var file_panel_shortcut: Shortcut = editor_settings.get_shortcut("script_editor/toggle_files_panel")
+	var file_panel_shortcut: Shortcut = Util.get_shortcut("toggle_files_panel")
 	panel_collapse_button.tooltip_text = "Toggle panel" + (" (%s)" % file_panel_shortcut.get_as_text() if file_panel_shortcut else "")
 	shortcuts[file_panel_shortcut] = toggle_file_panel
-	shortcuts[editor_settings.get_shortcut("script_editor/make_floating")] = make_floating_button.set_pressed.bind(true)
+	
+	var float_shortcut: Shortcut = Util.get_shortcut("make_floating")
+	shortcuts[float_shortcut] = make_floating_button.set_pressed.bind(true)
+	make_floating_button.tooltip_text = "Make the Rational tree editor floating. " + (" (%s)" % float_shortcut.get_as_text() if float_shortcut else "")
 	
 	shortcuts.erase(null)
 

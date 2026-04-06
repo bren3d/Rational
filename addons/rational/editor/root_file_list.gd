@@ -1,10 +1,9 @@
 @tool
 extends Tree
 
-const Util := preload("res://addons/rational/util.gd")
+const Util := preload("../util.gd")
 
 const Cache := preload("../data/cache.gd")
-#const SC := preload("../data/shortcut_data.gd")
 
 @export var filter_line_edit: LineEdit
 
@@ -17,6 +16,7 @@ var cache: Cache
 var recently_closed: Array[RootData]
 
 var shortcuts: Dictionary[Shortcut, Callable]
+
 
 func apply_theme() -> void:
 	filter_line_edit.right_icon = Util.get_icon(&"Search")
@@ -34,8 +34,6 @@ func _ready() -> void:
 	build_list()
 	
 	filter_line_edit.text_changed.connect(_on_filter_text_changed)
-	#TESTING
-	filter_line_edit.text_submitted.connect(func(text: String): print("Focus => %s" % filter_line_edit.has_focus()), CONNECT_DEFERRED)
 	
 	add_root_button.pressed.connect(_on_add_root_button_pressed)
 	
@@ -193,8 +191,16 @@ func _on_add_root_button_pressed() -> void:
 	prompt_new_root()
 
 func prompt_new_root(for_tree: RationalTree = null) -> void:
-	# TODO
-	pass
+	EditorInterface.popup_create_dialog(create_new_root, &"RationalComponent", "", 
+			"Change Component Type", [])
+
+## Creates a new root RationalComponent.
+func create_new_root(script_path: String) -> void:
+	if not Util.script_path_is_valid(script_path): return
+	var new_root: RationalComponent = Util.instantiate_path(script_path)
+	cache.add_root(new_root)
+	var data: RootData = cache.get_data(new_root)
+	select_data(data)
 
 func _on_edited_tree_changed(data: RootData) -> void:
 	select_data(data)
@@ -238,18 +244,22 @@ func _on_item_edited() -> void:
 	if item:
 		item_get_data(item).rename(item.get_text(0))
 
+func rename() -> void:
+	if not get_selected(): return
+	edit_selected(true)
 
 func init_popup() -> void:
 	popup.clear()
-	Util.add_menu_item(popup, "Save", &"Save", &"save", save_selected)
+	Util.add_menu_item(popup, "Save", &"", &"save", save_selected)
 	Util.add_menu_item(popup, "Save As...", &"", &"save_as", save_selected_as)
 	
-	Util.add_menu_item(popup, "Rename", &"Rename", &"rename", edit_selected.bind(true))
+	Util.add_menu_item(popup, "Rename", &"", &"rename", rename)
 	Util.add_menu_item(popup, "Close", &"", &"close", close_selected)
 	Util.add_menu_item(popup, "Close Others", &"", &"close_others", close_unselected) 
 	Util.add_menu_item(popup, "Close Below", &"", &"close_below", close_below_selected) 
 	Util.add_menu_item(popup, "Close All", &"", &"close_all", close_below_selected) 
 	popup.add_separator("")
+	Util.add_menu_item(popup, "Show in FileSystem", &"", &"show_in_file_system", show_in_file_system)
 	Util.add_menu_item(popup, "Change Path...", &"", &"", prompt_change_selected_path)
 
 func init_shortcuts() -> void:
@@ -270,7 +280,7 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if not event.is_pressed() or event.is_echo(): return
+	if not is_visible_in_tree() or not event.is_pressed() or event.is_echo(): return
 	
 	for sc: Shortcut in shortcuts:
 		if sc.matches_event(event):
@@ -282,6 +292,13 @@ func _shortcut_input(event: InputEvent) -> void:
 func _on_popup_menu_index_pressed(index: int) -> void:
 	popup.get_item_metadata(index).call()
 
+func show_in_file_system() -> void:
+	var item_path:= item_get_path(get_selected())
+	if not item_path: return
+	if item_path.contains("::"): 
+		item_path = item_path.get_slice("::", 0)
+	if DirAccess.dir_exists_absolute(item_path):
+		EditorInterface.select_file(item_path)
 
 func prompt_change_tree_path(item: TreeItem) -> void:
 	if not item: return

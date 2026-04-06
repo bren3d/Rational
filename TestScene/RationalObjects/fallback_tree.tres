@@ -9,66 +9,80 @@
 [ext_resource type="Script" uid="uid://dq5d3qx2jtck3" path="res://addons/rational/components/decorators/inverter.gd" id="5_j4u54"]
 [ext_resource type="Script" uid="uid://bktdpfgt2g20l" path="res://addons/rational/components/condition.gd" id="5_utb02"]
 
+[sub_resource type="Resource" id="Resource_33d2x"]
+resource_name = "Failer"
+script = ExtResource("3_2v6qb")
+
+[sub_resource type="Resource" id="Resource_j4u54"]
+resource_name = "Sequence"
+script = ExtResource("2_2v6qb")
+children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_33d2x")])
+
 [sub_resource type="Resource" id="Resource_5d4g7"]
 resource_name = "Failer"
 script = ExtResource("3_2v6qb")
 
 [sub_resource type="Resource" id="Resource_3wfkd"]
-resource_name = "Sequence"
-script = ExtResource("2_2v6qb")
-children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_5d4g7")])
+resource_name = "Failer"
+script = ExtResource("5_j4u54")
 
 [sub_resource type="Resource" id="Resource_83ri2"]
+resource_name = "Fallback"
+script = ExtResource("2_awgbu")
+
+[sub_resource type="Resource" id="Resource_kvidp"]
 resource_name = "ActionLeaf"
 script = ExtResource("4_33d2x")
 
-[sub_resource type="Resource" id="Resource_kvidp"]
+[sub_resource type="Resource" id="Resource_qmkh1"]
 resource_name = "Failer"
 script = ExtResource("3_2v6qb")
 
-[sub_resource type="Resource" id="Resource_qmkh1"]
-resource_name = "Inverter"
-script = ExtResource("5_j4u54")
-
 [sub_resource type="Resource" id="Resource_cmxhe"]
-resource_name = "Succeeder"
-script = ExtResource("4_yt8sq")
-child = SubResource("Resource_qmkh1")
-children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_qmkh1")])
+resource_name = "No"
+script = ExtResource("3_2v6qb")
 
 [sub_resource type="Resource" id="Resource_mp7jn"]
-resource_name = "Fallback"
-script = ExtResource("2_awgbu")
-children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_83ri2"), SubResource("Resource_kvidp"), SubResource("Resource_cmxhe")])
+resource_name = "Inverter"
+script = ExtResource("5_j4u54")
+child = SubResource("Resource_cmxhe")
+children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_cmxhe")])
 
 [sub_resource type="Resource" id="Resource_galaw"]
+resource_name = "Succeeder"
+script = ExtResource("4_yt8sq")
+child = SubResource("Resource_mp7jn")
+children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_mp7jn")])
+
+[sub_resource type="Resource" id="Resource_nx55y"]
+resource_name = "Fallback"
+script = ExtResource("2_awgbu")
+children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_5d4g7"), SubResource("Resource_3wfkd"), SubResource("Resource_83ri2"), SubResource("Resource_kvidp"), SubResource("Resource_qmkh1"), SubResource("Resource_galaw")])
+
+[sub_resource type="Resource" id="Resource_srx8v"]
 resource_name = "ConditionLeaf"
 script = ExtResource("5_utb02")
 
-[sub_resource type="Resource" id="Resource_nx55y"]
-resource_name = "Failer"
-script = ExtResource("3_2v6qb")
-
-[sub_resource type="Resource" id="Resource_srx8v"]
+[sub_resource type="Resource" id="Resource_l1xnu"]
 resource_name = "Fallback"
 script = ExtResource("2_awgbu")
-children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_mp7jn"), SubResource("Resource_galaw"), SubResource("Resource_nx55y")])
-
-[sub_resource type="Resource" id="Resource_l1xnu"]
-resource_name = "Succeeder"
-script = ExtResource("4_yt8sq")
-child = SubResource("Resource_srx8v")
-children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_srx8v")])
+children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_nx55y"), SubResource("Resource_srx8v")])
 
 [sub_resource type="Resource" id="Resource_b6ava"]
-resource_name = "Failer"
-script = ExtResource("3_2v6qb")
+resource_name = "Succeeder"
+script = ExtResource("4_yt8sq")
 child = SubResource("Resource_l1xnu")
 children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_l1xnu")])
+
+[sub_resource type="Resource" id="Resource_csre0"]
+resource_name = "Failer"
+script = ExtResource("3_2v6qb")
+child = SubResource("Resource_b6ava")
+children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_b6ava")])
 
 [resource]
 resource_name = "Fallback"
 script = ExtResource("2_awgbu")
-children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_3wfkd"), SubResource("Resource_b6ava")])
+children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_j4u54"), SubResource("Resource_csre0")])
 metadata/_custom_type_script = "uid://cugqq0rl38kp7"
 metadata/_is_root = true

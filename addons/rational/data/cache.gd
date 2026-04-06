@@ -1,13 +1,11 @@
 @tool
 extends RefCounted
-## 
+## Manages [RationalComponent] roots and stores editor data.
 
 
 const Util := preload("../util.gd")
 
 const ClassData := preload("rational_class_data.gd")
-const ShortcutData := preload("shortcut_data.gd")
-
 
 const FILENAME: String = "cache.cfg"
 const SECTION: String = "root_data_list"
@@ -25,12 +23,10 @@ signal root_reloaded(root_data: RootData)
 ## Emited when [param root] needs to be saved via file dialog.
 signal request_save_as(data: RationalComponent)
 
-## Emitted when 
+## Emitted when the selected RationalComponent tree root changes.
 signal edited_tree_changed(data: RootData)
 
 var class_data: ClassData
-
-var shortcut_data: ShortcutData
 
 ## Class icon textures.
 var class_icons: Dictionary[StringName, Texture2D]
@@ -72,8 +68,6 @@ func _init() -> void:
 	EditorInterface.get_file_system_dock().files_moved.connect(_on_file_moved)
 	EditorInterface.get_file_system_dock().resource_removed.connect(_on_resource_removed)
 	class_data = ClassData.new()
-	shortcut_data = ShortcutData.new()
-
 
 #region Paths/Roots
 
@@ -118,7 +112,7 @@ func add_data(root_data: RootData) -> void:
 	for data: RootData in get_data_list():
 		root_name_list.push_back(data.name)
 	
-	root_data.name = generate_unique_name(root_data.name, root_name_list)
+	root_data.name = Util.generate_unique_name(root_data.name, root_name_list)
 	root_data_list.push_back(root_data)
 	root_data.closed.connect(erase_data, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_DEFERRED)
 	
@@ -163,6 +157,14 @@ func _on_file_moved(from: String, to: String) -> void:
 
 #endregion Paths/Roots
 
+
+func _on_resource_removed(res: Resource) -> void:
+	if res is RationalComponent:
+		erase_data(get_data(res))
+
+func _on_data_request_edit(data: RootData) -> void:
+	edit_tree(data)
+
 #region Save/Load
 
 func get_save_path() -> String:
@@ -172,17 +174,20 @@ func save() -> void:
 	var root_data: Array[Dictionary]
 	for rd: RootData in root_data_list:
 		root_data.push_back(rd.serialize())
-
+	
 	var cfg: ConfigFile = ConfigFile.new()
 	
 	cfg.set_value(SECTION, KEY_ROOT_DATA, root_data)
-	print("Saved cache => %s" % error_string(cfg.save(get_save_path())))
+	var err:= cfg.save(get_save_path())
+	if err != OK:
+		printerr("Rational cache save error: %s" % error_string(err))
+
 
 func load() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
 	var err:= cfg.load(get_save_path())
 	if err != OK:
-		printerr("Error loading cache root_data_list => %s" % error_string(err))
+		printerr("Error loading Rational files: %s.\nCheck save file '%s'." % [error_string(err), get_save_path()])
 		return
 	
 	var fs: EditorFileSystem = EditorInterface.get_resource_filesystem()
@@ -194,9 +199,6 @@ func load() -> void:
 
 func save_data_as(data: RootData) -> void:
 	if not data: return
-	#if data.path:
-		#data = data.duplicate(false)
-		#data.data_saved.connect(add_data, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_ONE_SHOT)
 	request_save_as.emit(data)
 
 
@@ -206,7 +208,7 @@ func load_root_data(path: String) -> RootData:
 	var data: RootData = RootData.new(null, path)
 	
 	if not data.root:
-		printerr("Unable to load root at path: %s" % path)
+		Util.toast("Unable to load root at path '%s'" % path, EditorToaster.Severity.SEVERITY_ERROR)
 		return null
 	
 	return data
@@ -236,34 +238,6 @@ func load_path(path: String) -> RationalComponent:
 
 #endregion Save/Load
 
-
-func _on_resource_removed(res: Resource) -> void:
-	if res is RationalComponent:
-		erase_data(get_data(res))
-
-func _on_data_request_edit(data: RootData) -> void:
-	edit_tree(data)
-
-func generate_unique_name(initial_name: String, name_list: PackedStringArray) -> String:
-	if not initial_name: 
-		return ""
-	
-	var base_name: String = initial_name
-	var result: String = initial_name
-
-	var i: int = 0
-	while (i + 1) < result.length() and result.right(i + 1).is_valid_int():
-		i += 1
-	
-	if i > 0:
-		base_name = result.left(result.length() - i)
-		i = result.right(i).to_int()
-	
-	while result in name_list:
-		i += 1
-		result = base_name + str(i)
-	
-	return result
 
 #region icon
 

@@ -67,11 +67,18 @@ func get_child(idx: int) -> RationalComponent:
 	return children[idx]
 
 
-func move_child(child: RationalComponent, to_index: int = -1) -> void:
-	var child_idx: int = children.find(child)
-	if child_idx == to_index or to_index < 0: return
+func move_child(child: RationalComponent, to_index: int) -> void:
+	if not (-get_child_count() <= to_index and to_index < get_child_count()):
+		printerr("The calculated index %s is out of bounds (the array has %s elements). Leaving the array untouched." % [to_index, get_child_count()]) 
+		return
+	
+	var child_idx: int = get_child_index(child)
+	var to_index_clamped: int = wrapi(to_index, 0, get_child_count())
+	
+	if child_idx == to_index_clamped: return
+	
 	children.remove_at(child_idx)
-	children.insert(to_index, child)
+	children.insert(to_index_clamped, child)
 	
 	children_changed.emit()
 	notify_tree_changed()

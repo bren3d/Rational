@@ -1,8 +1,5 @@
 @tool
-##
 
-#const ClassData := preload("data/rational_class_data.gd")
-#const ShortcutData := preload("data/shortcut_data.gd")
 
 static func get_plugin() -> EditorPlugin:
 	return Engine.get_singleton(&"Rational")
@@ -16,6 +13,15 @@ static func get_class_data() -> Object:
 static func get_main_editor() -> Object:
 	return get_plugin().editor
 
+static func get_action_handle() -> Object:
+	return get_plugin().action_handle
+
+static func get_undo_redo() -> Object:
+	return EditorInterface.get_editor_undo_redo()
+
+static func toast(message: String, severity: EditorToaster.Severity = 0, tooltip: String = "") -> void:
+	EditorInterface.get_editor_toaster().push_toast(message, severity, tooltip)
+
 static func comp_get_icon(component: Object) -> Texture2D:
 	return get_class_data().comp_get_icon(component)
 
@@ -28,12 +34,17 @@ static func class_get_script(_class: StringName) -> Script:
 static func instantiate_class(_class: StringName) -> Object:
 	return get_class_data().instantiate_class(_class)
 
+static func instantiate_path(script_path: String) -> Object:
+	return get_class_data().instantiate_path(script_path)
+
 static func class_is_valid(_class: StringName) -> bool:
 	return  get_class_data().class_is_valid(_class)
 
 ## Verifies the script inherets from [RationalComponent].
 static func script_path_is_valid(path: String) -> bool:
 	return get_class_data().script_path_is_valid(path)
+
+#static func create_comp
 
 #region Theme
 
@@ -138,6 +149,12 @@ static func get_shortcut(name: StringName) -> Shortcut:
 			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/copy_node")
 		&"paste":
 			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/paste_node")
+		&"duplicate":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/duplicate")
+		&"reparent":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/reparent")
+		&"reparent_to_new_node", &"reparent_to_new":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/reparent_to_new_node")
 		&"delete":
 			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/delete")
 		&"delete_no_confirm":
@@ -162,6 +179,10 @@ static func get_shortcut(name: StringName) -> Shortcut:
 			return EditorInterface.get_editor_settings().get_shortcut("canvas_item_editor/zoom_minus")
 		&"zoom_plus": 
 			return EditorInterface.get_editor_settings().get_shortcut("canvas_item_editor/zoom_plus")
+		&"toggle_files_panel":
+			return EditorInterface.get_editor_settings().get_shortcut("script_editor/toggle_files_panel")
+		&"show_in_filesystem", &"show_in_file_system":
+			return EditorInterface.get_editor_settings().get_shortcut("script_editor/show_in_file_system")
 		_ when "zoom_percent".is_subsequence_of(name):
 			return EditorInterface.get_editor_settings().get_shortcut("canvas_item_editor/%s" % name)
 	push_warning("No shortcut found: '%s'" % name)

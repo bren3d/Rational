@@ -2,15 +2,10 @@
 class_name RootData extends RefCounted
 
 ## Editor meta data of the dictionary with [code]path[/code] and [code]property[/code]
-const META_PATH: StringName = &"_path_data"
-
-#const Util:= preload("../util.gd")
-const META_ROOT: StringName = &"_is_root"
+const META_PATH: StringName = &"path_data"
 
 ## Emitted when data changed.
 signal changed
-
-signal root_changed
 
 signal tree_changed
 
@@ -21,7 +16,6 @@ signal data_saved
 signal closed
 
 signal unsaved_changes_changed
-
 
 var root: RationalComponent: set = set_root
 
@@ -96,7 +90,6 @@ func set_root(val: RationalComponent) -> void:
 			root.changed.connect(_on_root_changed)
 			root.script_changed.connect(_on_root_script_changed)
 			root.tree_changed.connect(_on_tree_changed)
-			root.set_meta(META_ROOT, true)
 		
 		else:
 			root = null
@@ -109,7 +102,6 @@ func set_root(val: RationalComponent) -> void:
 		
 		set_block_signals(false)
 		changed.emit()
-		root_changed.emit()
 
 
 func set_path(val: String) -> void:
@@ -174,7 +166,9 @@ func save(save_path: String = "") -> Error:
 			scene_node = packed.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED)
 		
 		if not scene_node.has_node(path_data.path):
+			
 			printerr("No node found: %s" % path_data.path)
+			print(has_meta(META_PATH), path_data)
 			return err
 		
 		var cached_ref: RationalComponent = scene_node.get_node(path_data.path).get(path_data.property)

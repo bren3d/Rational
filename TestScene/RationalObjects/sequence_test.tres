@@ -2,68 +2,32 @@
 
 [ext_resource type="Script" uid="uid://bf5yfufeku4t4" path="res://addons/rational/components/rational_component.gd" id="1_j0yi3"]
 [ext_resource type="Script" uid="uid://b084a27qrwlfn" path="res://addons/rational/components/sequence.gd" id="2_ye40l"]
-[ext_resource type="Script" uid="uid://dslcu3blcrgyx" path="res://addons/rational/components/decorators/succeeder.gd" id="3_v1qtv"]
-[ext_resource type="Script" uid="uid://lp2l3w30rxd3" path="res://addons/rational/components/decorators/failer.gd" id="3_ye40l"]
+[ext_resource type="Script" uid="uid://bify0ecwxtt67" path="res://addons/rational/components/action.gd" id="3_8kqhx"]
 [ext_resource type="Script" uid="uid://cugqq0rl38kp7" path="res://addons/rational/components/fallback.gd" id="4_8kqhx"]
 [ext_resource type="Script" uid="uid://bktdpfgt2g20l" path="res://addons/rational/components/condition.gd" id="6_chyu0"]
 
 [sub_resource type="Resource" id="Resource_bj17s"]
-resource_name = "Succeeder"
-script = ExtResource("3_v1qtv")
+resource_name = "InAttackRange"
+script = ExtResource("6_chyu0")
 
 [sub_resource type="Resource" id="Resource_hy302"]
-resource_local_to_scene = true
-resource_name = "Failer"
-script = ExtResource("3_ye40l")
-child = SubResource("Resource_bj17s")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_bj17s")])
-metadata/_custom_type_script = "uid://lp2l3w30rxd3"
+resource_name = "MoveToAttack"
+script = ExtResource("3_8kqhx")
 
 [sub_resource type="Resource" id="Resource_chyu0"]
-resource_name = "Succeeder"
-script = ExtResource("3_v1qtv")
+resource_name = "AttackFB"
+script = ExtResource("4_8kqhx")
+children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_bj17s"), SubResource("Resource_hy302")])
 
 [sub_resource type="Resource" id="Resource_rcurh"]
-resource_name = "Fallback"
-script = ExtResource("4_8kqhx")
-
-[sub_resource type="Resource" id="Resource_pesko"]
-resource_name = "ConditionLeaf"
-script = ExtResource("6_chyu0")
-
-[sub_resource type="Resource" id="Resource_v5xqg"]
-resource_name = "Failer"
-script = ExtResource("3_ye40l")
-child = SubResource("Resource_pesko")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_pesko")])
-
-[sub_resource type="Resource" id="Resource_jtbdi"]
-resource_name = "ConditionLeaf"
-script = ExtResource("6_chyu0")
-
-[sub_resource type="Resource" id="Resource_8ybb0"]
-resource_name = "Fallback"
-script = ExtResource("4_8kqhx")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_v5xqg"), SubResource("Resource_jtbdi")])
-
-[sub_resource type="Resource" id="Resource_gcqb1"]
-resource_name = "Failer"
-script = ExtResource("3_ye40l")
-child = SubResource("Resource_8ybb0")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_8ybb0")])
-
-[sub_resource type="Resource" id="Resource_xnu83"]
-resource_local_to_scene = true
-resource_name = "Sequence"
-script = ExtResource("2_ye40l")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_chyu0"), SubResource("Resource_rcurh"), SubResource("Resource_gcqb1")])
-metadata/_custom_type_script = "uid://b084a27qrwlfn"
+resource_name = "Attack"
+script = ExtResource("3_8kqhx")
 
 [resource]
 resource_local_to_scene = true
 resource_name = "Sequence"
 script = ExtResource("2_ye40l")
-children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_hy302"), SubResource("Resource_xnu83")])
+children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_chyu0"), SubResource("Resource_rcurh")])
 metadata/_custom_type_script = "uid://b084a27qrwlfn"
 metadata/_is_root = true
 metadata/_path_data = {

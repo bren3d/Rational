@@ -6,7 +6,6 @@ signal class_data_updated
 var class_data: Dictionary[StringName, Dictionary]
 
 func _init() -> void:
-	Engine.set_meta(&"RationalClassData", self)
 	update_class_data()
 	EditorInterface.get_resource_filesystem().script_classes_updated.connect(update_class_data)
 
@@ -29,17 +28,30 @@ func update_class_data() -> void:
 	add_class_data(&"RationalComponent")
 	class_data_updated.emit()
 
-func instantiate_class(_class: StringName) -> Object:
-	var script: Script = class_get_script(_class)
+func instantiate_script(script: GDScript) -> Object:
+	if not script: return
 	var class_object: Object
-	if not script:
-		printerr("Cannot instantiate class '%s': No script found." % _class)
-	elif script.is_abstract():
-		printerr("Cannot instantiate class '%s': Class is abstract." % _class)
+	if script.is_abstract():
+		printerr("Cannot instantiate class '%s': Class is abstract." % script.get_global_name())
 	else:
 		class_object = script.new()
-		class_object.set(&"resource_name", _class)
+		class_object.set(&"resource_name", script.get_global_name())
+		
 	return class_object
+
+func instantiate_class(_class: StringName) -> Object:
+	if not class_is_valid(_class):
+		printerr("Cannot instantiate class '%s': Class not valid." % _class)
+		return null
+	return instantiate_script(class_get_script(_class))
+
+func instantiate_path(path: String) -> Object:
+	if not path: return null
+	if not script_path_is_valid(path):
+		printerr("Cannot instantiate path '%s'." % path)
+		return null
+	return instantiate_script(load(path)) if script_path_is_valid(path) else null
+
 
 func class_get_data(_class: StringName) -> Dictionary:
 	return class_data.get(_class, {
