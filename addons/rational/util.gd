@@ -28,6 +28,9 @@ static func comp_get_icon(component: Object) -> Texture2D:
 static func comp_get_class(component: Object) -> StringName:
 	return get_class_data().comp_get_class(component)
 
+static func class_extends_rational_component(_class: StringName) -> bool:
+	return get_class_data().class_extends_rational_component(_class)
+
 static func class_get_script(_class: StringName) -> Script:
 	return get_class_data().class_get_script(_class)
 

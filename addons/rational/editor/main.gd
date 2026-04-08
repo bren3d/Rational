@@ -40,10 +40,8 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	
 	panel_collapse_button.pressed.connect(_on_panel_collapse_pressed)
 	init_shortcuts()
-	
 
 func set_cache(_cache: Cache) -> void:
 	cache = _cache
@@ -52,7 +50,6 @@ func set_cache(_cache: Cache) -> void:
 
 func _on_edited_tree_changed(data: RootData) -> void:
 	graph_edit.set_active_root(data)
-	EditorInterface.set_main_screen_editor("Rational")
 
 func save_as(data: RootData) -> void:
 	if not data: return

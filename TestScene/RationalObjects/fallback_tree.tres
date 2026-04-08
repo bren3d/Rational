@@ -45,13 +45,11 @@ script = ExtResource("3_2v6qb")
 [sub_resource type="Resource" id="Resource_mp7jn"]
 resource_name = "Inverter"
 script = ExtResource("5_j4u54")
-child = SubResource("Resource_cmxhe")
 children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_cmxhe")])
 
 [sub_resource type="Resource" id="Resource_galaw"]
 resource_name = "Succeeder"
 script = ExtResource("4_yt8sq")
-child = SubResource("Resource_mp7jn")
 children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_mp7jn")])
 
 [sub_resource type="Resource" id="Resource_nx55y"]
@@ -71,13 +69,11 @@ children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_nx55y"), SubReso
 [sub_resource type="Resource" id="Resource_b6ava"]
 resource_name = "Succeeder"
 script = ExtResource("4_yt8sq")
-child = SubResource("Resource_l1xnu")
 children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_l1xnu")])
 
 [sub_resource type="Resource" id="Resource_csre0"]
 resource_name = "Failer"
 script = ExtResource("3_2v6qb")
-child = SubResource("Resource_b6ava")
 children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_b6ava")])
 
 [resource]

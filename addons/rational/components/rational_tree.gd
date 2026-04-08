@@ -14,7 +14,7 @@ enum {SUCCESS, FAILURE, RUNNING}
 # ALERT TBR DEBUG ONLY
 @export_custom(0, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY)
 var root_id: String:
-	get(): return root.resource_path.get_slice("::", 1) if root else "" 
+	get(): return root.resource_path.get_slice("::", 1) if root else ""
 
 @export var actor: Node
 
@@ -28,6 +28,11 @@ func _ready() -> void:
 	set_process(false)
 	if not actor:
 		actor = get_parent()
+
+#
+#func _enter_tree() -> void:
+	#if root and Engine.is_editor_hint():
+		#root.set_meta(&"_path_data", "%s:%s" % [owner.get_path_to(self), "root"])
 
 
 func _process(delta: float) -> void:
@@ -50,8 +55,6 @@ func call_tree(method: StringName, args: Array = []) -> void:
 
 func set_root(val: RationalComponent) -> void:
 	root = val
-	if root and Engine.is_editor_hint() and is_node_ready():
-		root.set_meta(&"_path_data", {path = owner.get_path_to(self), property = "root"})
 
 
 func set_disabled(val: bool) -> void:
@@ -64,13 +67,3 @@ func set_disabled(val: bool) -> void:
 		tree_disabled.emit()
 	else:
 		tree_enabled.emit()
-#
-#func _get_property_list() -> Array[Dictionary]:
-	#return [{name = "root_path", type = TYPE_STRING, usage = PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY}]
-#
-#func _get(property: StringName) -> Variant:
-	#match property:
-		#&"root_path":
-			#return root.resource_path if root else ""
-	#return null
-##func 

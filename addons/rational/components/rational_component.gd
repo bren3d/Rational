@@ -79,6 +79,8 @@ func _validate_property(property: Dictionary) -> void:
 	match property.name:
 		&"resource_local_to_scene", &"resource_name":
 			property.usage &= ~PROPERTY_USAGE_EDITOR
+		&"children":
+			property.usage |= PROPERTY_USAGE_READ_ONLY
 
 
 func _to_string() -> String:

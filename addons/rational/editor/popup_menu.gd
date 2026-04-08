@@ -71,6 +71,9 @@ enum {
 	## ITEM_CUT | ITEM_COPY | ITEM_DUPLICATE | ITEM_RENAME | ITEM_CHANGE_TYPE | ITEM_DOCUMENTATION | ITEM_DELETE
 	ITEMS_DEFAULT = 886,
 	
+	## ITEM_ADD_NODE_HERE | ITEM_INSTANTIATE_NODE_HERE | ITEM_MOVE_NODE_HERE | ITEM_PASTE_HERE
+	ITEMS_HERE = 273408,
+	
 	## All possible items.
 	ITEMS_ALL = 2147483648,
 }
@@ -103,9 +106,9 @@ func set_menu_options(options: int = ITEM_NONE) -> void:
 	if options & ITEM_INSTANTIATE_NODE_HERE:
 		create_item("Instantiate Component Here...", &"Instance", &"instantiate_child",ITEM_INSTANTIATE_NODE_HERE)
 	if options & ITEM_PASTE_HERE:
-		create_item("Paste", &"ActionPaste", &"paste",ITEM_PASTE_HERE)
+		create_item("Paste Component(s) Here", &"ActionPaste", &"paste", ITEM_PASTE_HERE)
 	if options & ITEM_MOVE_NODE_HERE:
-		create_item("Move Component(s) Here", &"ToolMove", &"",ITEM_MOVE_NODE_HERE)
+		create_item("Move Component(s) Here", &"ToolMove", &"", ITEM_MOVE_NODE_HERE)
 	if options & ITEM_ADD_CHILD:
 		create_item("Add Child...", &"Add", &"add_child",ITEM_ADD_CHILD)
 	if options & ITEM_INSTANTIATE_NODE:
@@ -119,7 +122,7 @@ func set_menu_options(options: int = ITEM_NONE) -> void:
 	if options & ITEM_PASTE:
 		create_item("Paste", &"ActionPaste", &"paste",ITEM_PASTE)
 	if options & ITEM_PASTE_AS_SIBLING:
-		create_item("Paste", &"ActionPaste", &"paste_as_sibling",ITEM_PASTE_AS_SIBLING)
+		create_item("Paste as Sibling", &"ActionPaste", &"paste_as_sibling",ITEM_PASTE_AS_SIBLING)
 	if item_count and not is_item_separator(item_count - 1):
 			add_separator("")
 	if options & ITEM_RENAME:
@@ -154,6 +157,9 @@ func set_menu_options(options: int = ITEM_NONE) -> void:
 		if item_count and not is_item_separator(item_count - 1):
 			add_separator("")
 		create_item("Delete", &"Remove", &"delete",ITEM_DELETE)
+	
+	if is_item_separator(item_count - 1):
+		remove_item(item_count - 1)
 
 
 func _on_index_pressed(index: int) -> void:

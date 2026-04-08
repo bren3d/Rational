@@ -3,9 +3,14 @@ extends EditorScript
 
 const Util := preload("res://addons/rational/util.gd")
 
+const TEST_SCENE_PATH: String = "res://TestScene/test_scene_character.tscn"
+
 const RATIONAL_SCRIPT_PATH := "res://addons/rational/components/rational_component.gd"
 const Cache := preload("res://addons/rational/data/cache.gd")
+const ClassData := preload("res://addons/rational/data/rational_class_data.gd")
+
 const Main := preload("res://addons/rational/editor/main.gd")
+const RootFileList := preload("res://addons/rational/editor/root_file_list.gd")
 const TreeDisplay := preload("res://addons/rational/editor/tree_display.gd")
 const GraphEditor := preload("res://addons/rational/editor/graph_edit.gd")
 const Settings := preload("res://addons/rational/settings.gd")
@@ -31,45 +36,87 @@ enum {
 	ITEM_ALL = 4294967295,
 }
 
+@export var comps: Array[RationalComponent]
+
 func _run() -> void:
 	print("Running...")
+	var inspector := EditorInterface.get_inspector()
 	#const PATH:= "res://TestScene/test_scene_character.tscn::Resource_k2f85"
-	var scene:= EditorInterface.get_edited_scene_root()
+	var scene := EditorInterface.get_edited_scene_root()
 	#
 	if not Engine.has_singleton(&"Rational"): return
 	var plugin: EditorPlugin = Engine.get_singleton(&"Rational")
 	var cache: Cache = plugin.cache
+	var class_data: ClassData = cache.class_data
 	var main: Main = plugin.editor
 	
-	var root_file_tree: TreeDisplay = main.root_file_tree
+	var root_file_tree: RootFileList = main.root_file_tree
 	var tree_display: TreeDisplay = main.tree_display
 	var graph_edit: GraphEditor = main.graph_edit
+	#const FALLBACK = preload("uid://cincrbrw3hw1y")
+	const PATH := "res://TestScene/test_scene_character.tscn::Resource_4t32f"
+	const PATH2 := "res://TestScene/test_scene_character.tscn::Resource_q1v5c"
+	#var res = ResourceLoader.load("res://new_shader.tres", "RationalComponent")
+	#print(res)
+	class_data.update_class_data()
+	#for _class: StringName in class_data.class_data:
+		#var script = class_data.class_data[_class].get("script", "")
+		#class_data.class_data[_class].script = script.resource_path if script is Script else script
 	
-	#var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
-	#var data: RootData = cache.get_data_list().front()
-	#var comp: RationalComponent = data.root
-	#print(comp, comp.get_script().get_base_script().get_global_name())
-	#var options:= ITEM_ALL
-	#options &= ~(ITEM_PASTE | ITEM_SAVE_AS_ROOT | ITEM_ADD_CHILD)
-	#var foo: int = (graph_edit.ITEMS_DEFAULT ^ graph_edit.ITEM_CHANGE_TYPE)
-	#printt(foo, bool(foo & graph_edit.ITEM_CHANGE_TYPE))
-	#EditorInterface.set_plugin_enabled("Rational", false)
-	#print(EditorInterface.set_plugin_enabled("Rational", false))
-	#for i in 32:
-		#print(1 << i)
-	var arr: Array = [0, 1, 2, 3]
-	
-	#var from_index: int = 3
-	#var to_index: int = wrapi(-4, 0, arr.size())
+	#var uid
+	#var uid:= ResourceUID.create_id_for_path(PATH)
+	#var uid2:= ResourceUID.create_id_for_path(PATH2)
+	#var id: int = 1834157330045161945
+	#var id_text: String = ResourceUID.id_to_text(id)
 	#
-	#var element =  arr.pop_at(from_index)
-	#arr.insert(to_index, element)
+	#var res = load(id_text)
+	#print(res)
 	
-	#printt(bool(options & ITEM_PASTE), bool(options & ITEM_SAVE_AS_ROOT), bool(options & ITEM_ADD_CHILD),)
+	#if not 
+	#ResourceUID.add_id(id, PATH)
 	
-	#print("ACCUM: %d" % accum)
-	#print(0b1111111111111111)
+	#print(ResourceUID.ensure_path())
+	#print("UID: %s" % id)
+	#print("UID TEXT: %s" % ResourceUID.id_to_text(id))
+	#print("HAS UID: %s" % ResourceUID.has_id(id))
+	#print("UID PATH: %s" % ResourceUID.get_id_path(id))
+	
+	
+	#print("UID2: %s" % uid2)
+	#print("HAS UID: %s" % ResourceUID.has_id(uid))
+	#ResourceUID.set_id(uid, PATH)
+	#print("HAS UID: %s" % ResourceUID.has_id(uid))
 
+func get_all_components() -> Array[RationalComponent]:
+	var result: Array[RationalComponent]
+	
+	var fs: EditorFileSystemDirectory = EditorInterface.get_resource_filesystem().get_filesystem()
+	#for
+	return result
+
+func get_component_paths_in_dir(dir: EditorFileSystemDirectory = EditorInterface.get_resource_filesystem().get_filesystem()) -> PackedStringArray:
+	var result: PackedStringArray
+	var dependency_string: String = "%s::::%s" % [ResourceUID.path_to_uid(RATIONAL_SCRIPT_PATH), RATIONAL_SCRIPT_PATH]
+	for i: int in dir.get_file_count():
+		if dir.get_file_type(i) == &"Resource":
+			var file_path: String = dir.get_path().path_join(dir.get_file(i))
+			#var dependencies:= ResourceLoader.get_dependencies(file_path)
+			#if dependency_string in dependencies:
+			#if load()
+				#result.push_back(file_path)
+			#else:
+			
+				
+	
+	for j: int in dir.get_subdir_count():
+		result.append_array(get_component_paths_in_dir(dir.get_subdir(j)))
+	return result
+
+func get_property(name: StringName) -> Dictionary:
+	for dict in get_property_list():
+		if dict.name == name:
+			return dict
+	return {}
 
 func print_cache(c: Cache) -> void:
 	printt("Paths:\n —", "\n —".join(c.path_list))
@@ -91,9 +138,6 @@ func get_class_files(type_name: StringName = &"", dir: EditorFileSystemDirectory
 		files.append_array(get_class_files(type_name, dir.get_subdir(i)))
 	return files
 
-
-func foo_print(string: String = "foo_print() called!") -> void:
-	printt(string)
 
 func print_inspector_path() -> void:
 	var inspector := EditorInterface.get_inspector()

@@ -41,7 +41,6 @@ func _enter_tree() -> void:
 	EditorInterface.get_editor_main_screen().add_child(window_wrapper)
 	
 	inspector_plugin = InpsectorPlugin.new()
-	inspector_plugin.set_cache(cache)
 	add_inspector_plugin(inspector_plugin)
 	
 	print_rich("[b]Rational™ initialized[/b]")
@@ -49,7 +48,6 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	window_wrapper.queue_free()
-	editor.queue_free() # TBR
 	
 	remove_inspector_plugin(inspector_plugin)
 	inspector_plugin = null
@@ -93,6 +91,8 @@ func _on_scene_saved(filepath: String) -> void:
 func _save_external_data() -> void:
 	cache.save()
 
+func _get_unsaved_status(for_scene: String) -> String:
+	return cache.get_unsaved_status(for_scene) if cache else ""
 
 #region Signal Methods 
 

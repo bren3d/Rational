@@ -8,8 +8,13 @@ const Util := preload("../util.gd")
 const ClassData := preload("rational_class_data.gd")
 
 const FILENAME: String = "cache.cfg"
+const FILENAME_PATHS: String = "paths.txt"
+const FILENAME_BACKUP: String = "backup.cfg"
+
 const SECTION: String = "root_data_list"
 const KEY_ROOT_DATA: String = "roots"
+
+const META_PATH_DATA: StringName = &"_path_data"
 
 signal data_added(data: RootData)
 signal data_erased(data: RootData)
@@ -53,10 +58,11 @@ func set_edited_tree(val: RootData) -> void:
 func edit_tree(tree_data: RootData) -> void:
 	if not tree_data: return
 	set_edited_tree(tree_data)
+	EditorInterface.set_main_screen_editor("Rational")
 
 func edit_root(root: RationalComponent) -> void:
 	if not has_root(root):
-		add_root(root)
+		add_root(root, "", root.get_meta(&"_path_data", "") if root.get_meta(&"_path_data", "") is String else "")
 	
 	edit_tree(root_get_data(root))
 
@@ -68,6 +74,7 @@ func _init() -> void:
 	EditorInterface.get_file_system_dock().files_moved.connect(_on_file_moved)
 	EditorInterface.get_file_system_dock().resource_removed.connect(_on_resource_removed)
 	class_data = ClassData.new()
+
 
 #region Paths/Roots
 
@@ -119,9 +126,9 @@ func add_data(root_data: RootData) -> void:
 	data_added.emit(root_data)
 
 
-func add_root(root: RationalComponent, path: String = "") -> void:
+func add_root(root: RationalComponent, path: String = "", node_path: String = "") -> void:
 	if not root or has_root_or_path(root, path): return
-	add_data(RootData.new(root, path if path else root.resource_path))
+	add_data(RootData.new(root, path if path else root.resource_path, node_path))
 
 
 func add_path(path: String) -> void:
@@ -167,13 +174,34 @@ func _on_data_request_edit(data: RootData) -> void:
 
 #region Save/Load
 
-func get_save_path() -> String:
-	return get_script().resource_path.get_base_dir().path_join(FILENAME)
+
+func get_unsaved_status(scene_path: String) -> String:
+	var names: PackedStringArray
+	for rd: RootData in get_data_list():
+		if not scene_path and rd.has_unsaved_changes():
+			return "Save changes made to Rational trees before closing?"
+		if rd.has_unsaved_changes() and rd.path.contains(scene_path) and ResourceLoader.exists(rd.path):
+			names.push_back(rd.name)
+	if not names.is_empty():
+		return "The following Rational roots in scene '%s' are unsaved:\n\n \t• %s" % [scene_path, "\n \t• ".join(names)]
+	return ""
+
+func get_save_path(file: String = FILENAME) -> String:
+	return get_script().resource_path.get_base_dir().path_join(file)
+
 
 func save() -> void:
 	var root_data: Array[Dictionary]
+	#var path_list: PackedStringArray
 	for rd: RootData in root_data_list:
+		#var err:= rd.save()
+		#if err == OK:
+			#path_list.push_back(rd.get_path())
+		
 		root_data.push_back(rd.serialize())
+	
+	#var fa:= FileAccess.open(get_save_path(FILENAME_PATHS), FileAccess.WRITE)
+	#fa.store_csv_line(path_list)
 	
 	var cfg: ConfigFile = ConfigFile.new()
 	

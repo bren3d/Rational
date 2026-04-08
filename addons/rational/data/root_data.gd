@@ -1,9 +1,6 @@
 @tool
 class_name RootData extends RefCounted
 
-## Editor meta data of the dictionary with [code]path[/code] and [code]property[/code]
-const META_PATH: StringName = &"path_data"
-
 ## Emitted when data changed.
 signal changed
 
@@ -11,33 +8,30 @@ signal tree_changed
 
 signal request_edit
 
-signal data_saved
-
 signal closed
 
 signal unsaved_changes_changed
 
+signal data_saved
+
 var root: RationalComponent: set = set_root
 
+var path: String: set = set_path, get = get_path
 
-var path: String: set = set_path
+var uid: int = ResourceUID.INVALID_ID 
 
+## Path to node & property containing the root. Used with [method Node.get_node_and_resource].
+var node_path: String
 
 var name: String: set = set_name
 
-
 var class_of_root: StringName: set = set_class_of_root
-
 
 var unsaved_changes: bool = false: set = set_unsaved_changes, get = has_unsaved_changes
 
-var is_scene_subresource: bool = false
 
-
-func _init(_root: RationalComponent = null, _path: String = "", node_path_data: Dictionary = {}) -> void:
-	#printt(_root, _path)
-	if not node_path_data.is_empty() and _root:
-		_root.set_meta(META_PATH, node_path_data)
+func _init(_root: RationalComponent = null, _path: String = "", _node_path: String = "") -> void:
+	node_path = _node_path
 	path = _path if _path or not _root else _root.resource_path
 	root = _root if _root else load_path(_path) 
 
@@ -56,14 +50,6 @@ func is_root_or_path(_root: RationalComponent, _path: String) -> bool:
 
 func can_save() -> bool:
 	return path != ""
-
-func get_resource_path() -> String:
-	return root.resource_path
-
-
-func set_resource_path(to_path: String) -> void:
-	if not root: return
-	root.resource_path = to_path
 
 
 func get_root_class() -> String:
@@ -85,7 +71,7 @@ func set_root(val: RationalComponent) -> void:
 				con.signal.disconnect(con.callable)
 		
 		if val:
-			#val.changed.connect(_on_root_changed, CONNECT_APPEND_SOURCE_OBJECT)
+			
 			root = val.duplicate(true)
 			root.changed.connect(_on_root_changed)
 			root.script_changed.connect(_on_root_script_changed)
@@ -104,6 +90,9 @@ func set_root(val: RationalComponent) -> void:
 		changed.emit()
 
 
+func get_path() -> String:
+	return path
+
 func set_path(val: String) -> void:
 	if not val or path == val: return
 	path = val
@@ -117,6 +106,9 @@ func set_name(val: String) -> void:
 			if not name:
 				name = get_root_class()
 			root.resource_name = name
+		var original_root := get_original_root()
+		if original_root:
+			original_root.resource_name = name
 		changed.emit()
 
 
@@ -132,12 +124,10 @@ func has_unsaved_changes() -> bool:
 func set_unsaved_changes(val: bool) -> void:
 		if unsaved_changes == val: return
 		unsaved_changes = val
+		var original_root: RationalComponent = get_original_root()
+		if original_root:
+			EditorInterface.set_object_edited(original_root, not val)
 		unsaved_changes_changed.emit()
-
-
-
-func get_node_path() -> String:
-	return root.get_meta(META_PATH, {}).get("path", "") if root else ""
 
 func copy_root_properties(from: RationalComponent, to: RationalComponent) -> void:
 	for property: Dictionary in from.get_property_list():
@@ -149,45 +139,42 @@ func save(save_path: String = "") -> Error:
 	if not save_path:
 		save_path = path
 	
+	if not save_path:
+		return ERR_FILE_BAD_PATH
+	
 	var save_copy: RationalComponent = root.duplicate(true)
 	var err: Error = FAILED
 	
 	if save_path.contains("::"):
+		
 		var scene_path: String = path.get_slice("::", 0)
-		var path_data: Dictionary = get_meta(META_PATH, {path = ^"", property = ""})
-		var scene_node: Node
-		var packed: PackedScene
-		for node: Node in EditorInterface.get_open_scene_roots():
-			if node.scene_file_path == scene_path:
-				scene_node = node
+		if not ResourceLoader.exists(scene_path, "PackedScene"):
+			printerr("RationalComponent '%s' scene path '%s' does not exist.")
+			return ERR_DOES_NOT_EXIST
 		
-		if not scene_node:
-			packed = ResourceLoader.load(scene_path, "PackedScene", ResourceLoader.CACHE_MODE_IGNORE)
-			scene_node = packed.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED)
-		
-		if not scene_node.has_node(path_data.path):
-			
-			printerr("No node found: %s" % path_data.path)
-			print(has_meta(META_PATH), path_data)
-			return err
-		
-		var cached_ref: RationalComponent = scene_node.get_node(path_data.path).get(path_data.property)
-		
-		copy_root_properties(save_copy, cached_ref)
-		
-		scene_node.get_node(path_data.path).notify_property_list_changed()
-		
-		if packed:
-			packed.pack(scene_node)
-			err = ResourceSaver.save(packed, scene_path, ResourceSaver.FLAG_REPLACE_SUBRESOURCE_PATHS)
-			scene_node.free()
-		
-		else:
-			var current_scene: String = EditorInterface.get_edited_scene_root().scene_file_path
+		if scene_path in EditorInterface.get_open_scenes():
+			# Need to save before attempting to load Packed.
 			EditorInterface.open_scene_from_path(scene_path)
-			EditorInterface.mark_scene_as_unsaved()
-			EditorInterface.open_scene_from_path(current_scene)
-			err = OK
+			EditorInterface.save_scene()
+		
+		var packed: PackedScene = ResourceLoader.load(scene_path, "PackedScene")
+		var scene_node: Node = packed.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)
+		
+		# 0 - Node | 1 - Resource | 2 - Rest of path
+		var node_and_resource: Array = scene_node.get_node_and_resource(node_path)
+		
+		if not node_and_resource[0] or not node_and_resource[1] is RationalComponent:
+			printerr("No Node/Resource found at path '%s'." % node_path)
+			scene_node.queue_free()
+			return ERR_DOES_NOT_EXIST
+		
+		copy_root_properties(save_copy, node_and_resource[1])
+		
+		packed.pack(scene_node)
+		err = ResourceSaver.save(packed, scene_path)
+		scene_node.free()
+		EditorInterface.reload_scene_from_path(scene_path)
+		
 	
 	else:
 		if ResourceLoader.has_cached(save_path):
@@ -219,50 +206,40 @@ func _on_tree_changed() -> void:
 	set_unsaved_changes(true)
 	tree_changed.emit()
 
-func _on_cached_root_tree_changed(comp: RationalComponent = null) -> void:
-	print("Cached root tree_changed: %s" % comp)
-
-func _on_cached_root_changed(comp: RationalComponent = null) -> void:
-	if not comp: return
-	print("Cached root changed: %s" % comp)
-	name = comp.resource_name
-	path = comp.resource_path
-
 func serialize() -> Dictionary:
 	return {
 		name = name,
 		path = path,
+		node_path = node_path,
 		root = root,
-		node_path_data = get_meta(META_PATH, {}),
 		}
 
+func get_original_root() -> RationalComponent:
+	return RootData.load_path(get_path(), true)
 
 static func deserialize(data: Dictionary) -> RootData:
-	var data_path: String = data.get("path", "")
-	if data_path:
-		var loaded_root: RationalComponent = load_path(data_path)
-		if loaded_root:
-			return RootData.new(loaded_root, data_path, data.get("node_path_data", {}))
-	
-	return RootData.new(data.get("root"), data_path, data.get("node_path_data", {}))
+	var data_root: RationalComponent = load_path(data.get("path", ""))
+	return RootData.new(data_root if data_root else data.get("root"), data.get("path", ""), data.get("node_path", ""))
 
-
-static func load_path(path: String) -> RationalComponent:
+static func load_path(path: String, show_errors: bool = true) -> RationalComponent:
 	if not path: return null
 	
 	if ResourceLoader.exists(path):
-		return ResourceLoader.load(path, "RationalComponent", ResourceLoader.CACHE_MODE_REUSE)
+		return ResourceLoader.load(path, "RationalComponent")
 	
 	if not path.containsn("::"):
-		printerr("Unable to load component at path %s." % path)
+		if show_errors:
+			printerr("Unable to load component at path %s." % path)
 		return null
 	
 	var scene_path: String = path.get_slice("::", 0)
 	
 	if not ResourceLoader.exists(scene_path, "PackedScene"):
-		printerr("Broken scene path for RationalComponent: %s" % path)
+		if show_errors:
+			printerr("Broken scene path for RationalComponent at '%s'." % path)
 		return null
 	
+	# Iterating over the entire scene state was faster than instancing the scene node for a scene of this size. May need to test more on larger scenes.
 	var state: SceneState = ResourceLoader.load(scene_path, "PackedScene").get_state()
 	for i: int in state.get_node_count():
 		for j: int in state.get_node_property_count(i):

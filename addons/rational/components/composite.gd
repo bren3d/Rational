@@ -88,11 +88,6 @@ func setup(actor: Node, board: Blackboard) -> void:
 	for child: RationalComponent in children:
 		child.setup(actor, board)
 
-#
-#func _get_configuration_warnings() -> PackedStringArray:
-	#return PackedStringArray(["Children empty"]) if children.is_empty() else PackedStringArray()
-
-
 func get_children(recursive: bool = false) -> Array[RationalComponent]:
 	var result: Array[RationalComponent]
 	for child: RationalComponent in children:

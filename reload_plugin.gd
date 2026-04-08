@@ -1,5 +1,5 @@
 @tool
-class_name ResetPlugin
+class_name ReloadPlugin
 extends EditorScript
 
 func _run() -> void:

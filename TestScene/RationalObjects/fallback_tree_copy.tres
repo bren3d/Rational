@@ -7,27 +7,31 @@
 [ext_resource type="Script" uid="uid://cugqq0rl38kp7" path="res://addons/rational/components/fallback.gd" id="4_mdvq7"]
 
 [sub_resource type="Resource" id="Resource_nbjj7"]
-resource_name = "Inverter"
-script = ExtResource("2_wlhs3")
-
-[sub_resource type="Resource" id="Resource_wlhs3"]
 resource_name = "Sequence"
 script = ExtResource("2_nbjj7")
+
+[sub_resource type="Resource" id="Resource_wlhs3"]
+resource_name = "Inverter"
+script = ExtResource("2_wlhs3")
 children = Array[ExtResource("1_ku3b4")]([SubResource("Resource_nbjj7")])
 
 [sub_resource type="Resource" id="Resource_mdvq7"]
+resource_name = "Sequence"
+script = ExtResource("2_nbjj7")
+children = Array[ExtResource("1_ku3b4")]([SubResource("Resource_wlhs3")])
+
+[sub_resource type="Resource" id="Resource_14gug"]
 resource_name = "Fallback"
 script = ExtResource("4_mdvq7")
 
-[sub_resource type="Resource" id="Resource_14gug"]
+[sub_resource type="Resource" id="Resource_ae1rl"]
 resource_name = "Failer"
 script = ExtResource("3_wlhs3")
-child = SubResource("Resource_mdvq7")
-children = Array[ExtResource("1_ku3b4")]([SubResource("Resource_mdvq7")])
+children = Array[ExtResource("1_ku3b4")]([SubResource("Resource_14gug")])
 
 [resource]
 resource_name = "FallbackCopy"
 script = ExtResource("4_mdvq7")
-children = Array[ExtResource("1_ku3b4")]([SubResource("Resource_wlhs3"), SubResource("Resource_14gug")])
+children = Array[ExtResource("1_ku3b4")]([SubResource("Resource_mdvq7"), SubResource("Resource_ae1rl")])
 metadata/_custom_type_script = "uid://cugqq0rl38kp7"
 metadata/_is_root = true

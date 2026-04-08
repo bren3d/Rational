@@ -15,7 +15,6 @@ func add_class_data(_class: StringName) -> void:
 		if dict.class == _class:
 			class_data[_class] = dict.duplicate()
 			class_data[_class].icon = ResourceLoader.load(dict.icon, "Texture2D") if dict.icon else class_get_icon(dict.base)
-			class_data[_class].script = ResourceLoader.load(dict.path, "GDScript")
 		
 		elif dict.base == _class:
 			inheretors.push_back(dict.class)
@@ -58,7 +57,7 @@ func class_get_data(_class: StringName) -> Dictionary:
 		"base" : &"INVALID",
 		"class": &"INVALID",
 		"icon": null,
-		"script": null,
+		"script": "",
 		"language": &"GDScript",
 		"path": "INVALID",
 		"is_abstract": false,
@@ -66,19 +65,22 @@ func class_get_data(_class: StringName) -> Dictionary:
 	})
 
 func class_get_base(_class: StringName) -> StringName:
-	return class_get_data(_class).get("base", &"RationalComponent")
+	return class_get_data(_class).get(&"base", &"RationalComponent")
 
 func class_get_icon(_class: StringName) -> Texture2D:
-	return class_get_data(_class).get("icon", get_default_class_icon())
+	return class_get_data(_class).get(&"icon", get_default_class_icon())
 
 func class_get_script(_class: StringName) -> GDScript:
-	return class_get_data(_class).get("script")
+	return ResourceLoader.load(class_get_script_path(_class), "GDScript")
+
+func class_get_script_path(_class: StringName) -> String:
+	return class_get_data(_class).get(&"path", "")
 
 func class_is_abstract(_class: StringName) -> bool:
-	return class_get_data(_class).get("is_abstract", false)
+	return class_get_data(_class).get(&"is_abstract", false)
 
 func class_is_tool(_class: StringName) -> bool:
-	return class_get_data(_class).get("is_tool", false)
+	return class_get_data(_class).get(&"is_tool", false)
 
 func class_has_icon(_class: StringName) -> bool:
 	return class_get_icon(_class) != null
@@ -89,14 +91,17 @@ func class_has_script(_class: StringName) -> bool:
 func class_extends_rational_component(_class: StringName) -> bool:
 	return _class in class_data
 
-func class_extends_class(_class: StringName, base_class: StringName) -> bool:
+func class_extends_base(_class: StringName, base_class: StringName) -> bool:
 	return _class in class_get_inhereters(base_class, true)
 
 func class_is_valid(_class: StringName) -> bool:
 	return class_extends_rational_component(_class) and class_has_script(_class)
 
+func script_extends_rational_component(path: String) -> bool:
+	return path in get_script_list()
+
 func script_path_is_valid(path: String) -> bool:
-	return ResourceLoader.exists(path, "GDScript") and class_extends_rational_component(load(path).get_global_name())
+	return script_extends_rational_component(path) and ResourceLoader.exists(path, "GDScript")
 
 func comp_get_script(comp: Object) -> Script:
 	return comp.get_script() if comp else null
@@ -117,4 +122,12 @@ func class_get_inhereters(_class: StringName, recursive: bool = false) -> Array[
 		result.push_back(dict.class)
 		if recursive:
 			result.append_array(class_get_inhereters(dict.class, recursive))
+	return result
+
+## Returns all scripts that extend RationalComponent.
+func get_script_list() -> PackedStringArray:
+	var result: PackedStringArray
+	for dict: Dictionary in class_data.values():
+		if dict.get("script", false):
+			result.push_back(dict.script)
 	return result

@@ -233,7 +233,7 @@ func close_all() -> void:
 func save_item(item: TreeItem) -> void:
 	var data: RootData = item_get_data(item)
 	if not data.can_save():
-		pass
+		cache.save_data_as(data)
 	item_get_data(item).save()
 
 func save_item_as(item: TreeItem) -> void:
@@ -284,6 +284,7 @@ func _shortcut_input(event: InputEvent) -> void:
 	
 	for sc: Shortcut in shortcuts:
 		if sc.matches_event(event):
+			print("Has Focus: %s" % has_focus())
 			accept_event()
 			shortcuts[sc].call()
 			return
@@ -295,10 +296,10 @@ func _on_popup_menu_index_pressed(index: int) -> void:
 func show_in_file_system() -> void:
 	var item_path:= item_get_path(get_selected())
 	if not item_path: return
-	if item_path.contains("::"): 
-		item_path = item_path.get_slice("::", 0)
-	if DirAccess.dir_exists_absolute(item_path):
+	item_path = item_path.get_slice("::", 0)
+	if FileAccess.file_exists(item_path):
 		EditorInterface.select_file(item_path)
+		#print("Selected file '%s'" % item_path)
 
 func prompt_change_tree_path(item: TreeItem) -> void:
 	if not item: return
