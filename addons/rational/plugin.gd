@@ -3,6 +3,7 @@ extends EditorPlugin
 
 const Util := preload("util.gd")
 const Cache := preload("data/cache.gd")
+const ClassData := preload("data/rational_class_data.gd")
 
 const Settings := preload("settings.gd")
 
@@ -12,11 +13,14 @@ const Editor := preload("editor/main.gd")
 const InpsectorPlugin := preload("plugins/inspector/inspector_plugin.gd")
 const ActionHandle := preload("editor/action_handle.gd")
 
+const Selection := preload("editor/selection.gd")
+
 var inspector_plugin: InpsectorPlugin
 
-## Cache for all RationalComponent resources. 
 var cache: Cache
+var class_data: ClassData
 
+var selection: Selection
 var action_handle: ActionHandle
 
 var window_wrapper: WindowWrapper
@@ -34,6 +38,9 @@ func _enter_tree() -> void:
 	Engine.register_singleton(&"Rational", self)
 	
 	cache = Cache.new()
+	class_data = ClassData.new()
+	
+	selection = Selection.new()
 	action_handle = ActionHandle.new()
 	
 	window_wrapper = WindowWrapper.new()
@@ -56,9 +63,10 @@ func _exit_tree() -> void:
 	remove_inspector_plugin(inspector_plugin)
 	inspector_plugin = null
 	
-	#cache.save()
 	cache = null
+	class_data = null
 	
+	selection = null
 	action_handle = null
 	
 	Engine.set_meta(&"Main", null)

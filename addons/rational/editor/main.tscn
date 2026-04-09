@@ -267,7 +267,3 @@ hint_underlined = false
 
 [connection signal="theme_changed" from="." to="." method="apply_theme"]
 [connection signal="index_pressed" from="MainVBox/main/VSplitTreePanel/VBoxRootFileTree/RootList/PopupMenu" to="MainVBox/main/VSplitTreePanel/VBoxRootFileTree/RootList" method="_on_popup_menu_index_pressed"]
-[connection signal="menu_request" from="MainVBox/main/VSplitTreePanel/VBoxTreeDisplay/TreeDisplay" to="MainVBox/main/GraphEdit" method="_on_menu_id_pressed"]
-[connection signal="selected_items_changed" from="MainVBox/main/VSplitTreePanel/VBoxTreeDisplay/TreeDisplay" to="MainVBox/main/GraphEdit" method="_on_tree_display_selected_items_changed"]
-[connection signal="show_component_in_editor" from="MainVBox/main/VSplitTreePanel/VBoxTreeDisplay/TreeDisplay" to="MainVBox/main/GraphEdit" method="select_and_center"]
-[connection signal="selected_changed" from="MainVBox/main/GraphEdit" to="MainVBox/main/VSplitTreePanel/VBoxTreeDisplay/TreeDisplay" method="_on_graph_edit_selected_changed"]

@@ -11,14 +11,11 @@ const RationalGraphNode := preload("graph_node.gd")
 const CreatePopup = preload("component_dialog.gd") 
 const Menu := preload("popup_menu.gd")
 const ActionHandle := preload("action_handle.gd")
-
+const Selection:= preload("selection.gd")
 
 const PROGRESS_SHIFT: int = 50
 const PORT_RANGE: float = 20
 const CONNECTING_SNAP_MOD_INCREASE: float = 2.5
-
-signal selected_changed(nodes: Array[RationalComponent])
-signal clipboard_changed
 
 @export var popup: CreatePopup
 @export var tree_display: Tree
@@ -31,8 +28,6 @@ var menu: Menu
 var updating_graph: bool = false
 var arranging_nodes: bool = false
 var restoring_state: bool = false
-
-var graph_update_queued: bool = false
 
 var horizontal_layout: bool = false:
 	set(value):
@@ -65,10 +60,9 @@ var is_restoring_state: bool = false
 
 var reset_dragged_nodes: bool = false
 
-#var undo_redo: UndoRedo = UndoRedo.new() # TODO - may use editor undoredo
-
 var shortcuts: Dictionary[Shortcut, Callable]
 
+var selection: Selection
 var action_handle: ActionHandle
 
 var undo_redo: EditorUndoRedoManager
@@ -78,6 +72,8 @@ var selected_node: RationalGraphNode
 
 
 func _ready() -> void:
+	selection = Util.get_selection()
+	selection.selection_changed.connect(_on_selection_changed)
 	style = EditorStyle.new()
 	
 	custom_minimum_size = Vector2(200, 200) * EditorInterface.get_editor_scale()
@@ -97,11 +93,10 @@ func _ready() -> void:
 	copy_nodes_request.connect(copy)
 	paste_nodes_request.connect(paste)
 	duplicate_nodes_request.connect(duplicate_components)
-	
 	delete_nodes_request.connect(_on_delete_nodes_request)
 	
-	node_selected.connect(_on_node_selection_changed)
-	node_deselected.connect(_on_node_selection_changed)
+	node_selected.connect(_on_node_selected)
+	node_deselected.connect(_on_node_deselected)
 	
 	begin_node_move.connect(_on_begin_node_move)
 	end_node_move.connect(_on_end_node_move)
@@ -109,6 +104,8 @@ func _ready() -> void:
 	popup_request.connect(_on_popup_request)
 	
 	action_handle = Util.get_action_handle()
+	action_handle.show_in_editor_request.connect(select_and_center)
+	
 	undo_redo = Util.get_undo_redo()
 	
 	menu = Menu.new()
@@ -116,6 +113,19 @@ func _ready() -> void:
 	menu.id_pressed.connect(_on_menu_id_pressed)
 	
 	init_shortcuts()
+
+func _on_selection_changed() -> void:
+	select_components(selection.get_selected_components())
+
+
+func select_components(components: Array[RationalComponent]) -> void:
+	for node: RationalGraphNode in get_graph_nodes():
+		node.selected = node.component in components
+
+func select_comp(comp: RationalComponent) -> void:
+	if comp_has_node(comp): return
+	set_selected(comp_get_graph_node(comp))
+
 
 #region Menu
 
@@ -125,7 +135,7 @@ func _on_popup_request(at_position: Vector2) -> void:
 		return
 	
 	if disconnect_hovered_port():
-		print("Hovered port disconnected.")
+		#print("Hovered port disconnected.")
 		return
 	
 	
@@ -136,19 +146,19 @@ func _on_popup_request(at_position: Vector2) -> void:
 		
 		if not Input.is_key_pressed(KEY_SHIFT) and not Input.is_key_pressed(KEY_CTRL):
 			set_selected(selected_node)
-
+	
 	if selected_node or Input.is_key_pressed(KEY_SHIFT):
 		menu.popup_at(get_menu_options(selected_node), get_screen_position() + at_position)
 		return
 	
 	show_quick_create_popup(get_screen_position() + at_position)
 
-## Checks
 func get_menu_options(node: RationalGraphNode = null) -> int:
-	if not node:
-		return Menu.ITEMS_HERE ^ (Menu.ITEM_PASTE_HERE * int(not action_handle.has_clipboard()))
-	
 	var selected_nodes:= get_selected_nodes()
+	
+	if not node:
+		return (Menu.ITEMS_HERE ^ (Menu.ITEM_PASTE_HERE * int(not action_handle.has_clipboard()))) \
+				^ (Menu.ITEM_MOVE_NODE_HERE * int(selected_nodes.is_empty()))
 	
 	assert(not selected_nodes.is_empty())
 	var options: int = Menu.ITEMS_DEFAULT | (Menu.ITEM_PASTE * int(action_handle.has_clipboard()))
@@ -194,7 +204,7 @@ func _on_menu_id_pressed(id: int) -> void:
 		Menu.ITEM_PASTE_HERE:
 			pass
 		Menu.ITEM_MOVE_NODE_HERE:
-			pass
+			move_nodes_here()
 		Menu.ITEM_PASTE_AS_SIBLING:
 			pass
 
@@ -217,11 +227,19 @@ func init_shortcuts() -> void:
 	shortcuts[Util.get_shortcut(&"change_type")] = change_type
 	shortcuts[Util.get_shortcut(&"save_as_root")] = save_as_root
 	
-	
 	shortcuts.erase(null)
 
 
 #region shortcuts
+
+func move_nodes_here() -> void:
+	if not has_selected_node(): return
+	var selected := get_selected_nodes()
+	var offset_delta: Vector2 = local_to_offset(Vector2(menu.position) - get_screen_position()) - nodes_get_rect(selected).get_center()
+	
+	for node: RationalGraphNode in selected:
+		move_component(node.component, node.position_offset + offset_delta)
+
 
 func select_and_center(comp: RationalComponent) -> void:
 	if not comp or not comp_has_node(comp): return
@@ -243,11 +261,7 @@ func cut() -> void:
 	var comps: Array[RationalComponent] = get_selected_components()
 	if not comps: return
 	action_handle.copy(comps)
-	#undo_redo.create_action("")
-	#for comp: RationalComponent in get_selected_components():
-		#clipboard.push_back(comp)
-		#delete_node(comp_get_node_name(comp))
-	#printt("CUT: ", clipboard)
+
 
 func copy() -> void:
 	if is_dragging_connection: return
@@ -278,7 +292,6 @@ func paste_here() -> void:
 	place_orphans(components, orphan_offset)
 	action_handle.commit(false)
 
-#func add_orphan()
 
 
 func duplicate_components() -> void:
@@ -299,7 +312,8 @@ func duplicate_components() -> void:
 func delete() -> void:
 	if is_dragging_connection: return
 	if has_selected_node():
-		delete_node(get_selected().name)
+		for comp in get_selected_components():
+			delete_component(comp)
 
 
 ## Only prompts to change type. Does not change any scripts.
@@ -418,16 +432,19 @@ func create_child_component(script_path: String, parent: Composite) -> void:
 func create_component(_class: StringName, at_position: Vector2 = Vector2.ZERO) -> void:
 	if not _class or not Util.class_is_valid(_class): return
 	var comp: RationalComponent = Util.instantiate_class(_class)
-	var node: RationalGraphNode = add_node(comp)
-	place_node_at(node, ((at_position if at_position else size/2.0 - node.size/2.0) + scroll_offset)  / zoom)
-	
+	var offset: Vector2 = local_to_offset(at_position) if at_position else Vector2.ZERO
 	action_handle.create_action("Create Component")
-	undo_redo.add_undo_method(self, &"remove_child", node)
-	undo_redo.add_do_method(self, &"add_child", node)
-	undo_redo.add_do_reference(node)
-	action_handle.commit(false)
+	undo_redo.add_undo_method(self, &"delete_component", comp)
+	undo_redo.add_do_method(self, &"add_component", comp, offset)
+	action_handle.commit(true)
 	
 	print_rich("[color=green]Node Created: %s[/color]" % comp)
+
+
+func add_component(comp: RationalComponent, at_offset: Vector2 = Vector2.ZERO) -> void:
+	var node: RationalGraphNode = add_node(comp)
+	place_node_at(node, at_offset)
+
 
 
 func place_node_at(node: RationalGraphNode, offset: Vector2) -> void:
@@ -435,7 +452,7 @@ func place_node_at(node: RationalGraphNode, offset: Vector2) -> void:
 	node.position_offset = offset
 
 func _on_connection_drag_started(from_node: StringName, from_port: int, is_output: bool) -> void:
-	print("Connection drag started")
+	#print("Connection drag started")
 	connecting_node = get_node(String(from_node))
 	connecting_output = is_output
 	connection_start_position = get_node_port_position(connecting_node, is_output) * zoom
@@ -444,7 +461,7 @@ func _on_connection_drag_started(from_node: StringName, from_port: int, is_outpu
 	queue_redraw()
 
 func _on_connection_drag_ended() -> void:
-	print("Connection drag ended")
+	#print("Connection drag ended")
 	connecting_node = null
 	is_dragging_connection = false
 	queue_redraw()
@@ -454,15 +471,23 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 		printerr("Attempting to connect graph node port != 0.")
 		return
 	
-	var current_parent:= node_get_parent(to_node)
-	var current_parent_comp:= current_parent.component if current_parent else null
-	action_handle.reparent_item(node_get_comp(to_node), node_get_comp(from_node), current_parent_comp)
+	print("CONNECTION REQUEST CALLED")
+	var current_parent: RationalGraphNode = node_get_parent(to_node)
+	var current_parent_comp: RationalComponent = current_parent.component if current_parent else null
+	action_handle.reparent_item(node_get_comp(to_node), node_get_comp(from_node), current_parent_comp, UndoRedo.MERGE_DISABLE)
+		
 
 
 func _on_delete_nodes_request(nodes: Array[StringName]) -> void:
 	if is_dragging_connection: return
-	for node_name: StringName in nodes:
-		delete_node(node_name)
+	var components: Array[RationalComponent]
+	for n: String in nodes:
+		if not has_node(n): return
+		components.push_back(node_get_comp(n))
+	
+	for comp: RationalComponent in components:
+		delete_component(comp)
+
 
 
 func node_get_comp(node_name: String) -> RationalComponent:
@@ -539,7 +564,7 @@ func add_node(comp: RationalComponent) -> RationalGraphNode:
 	if not comp: return
 	
 	if comp_has_node(comp):
-		pass
+		return comp_get_graph_node(comp)
 	
 	var node: RationalGraphNode = RationalGraphNode.new(style, horizontal_layout)
 	add_child(node)
@@ -560,7 +585,8 @@ func add_node(comp: RationalComponent) -> RationalGraphNode:
 	return node
 
 
-func delete_node(node_name: StringName) -> void:
+func delete_node(node_name: String) -> void:
+	if not has_node(node_name): return
 	var node: RationalGraphNode = get_node(String(node_name))
 	
 	if not node or node.component == get_root_component():
@@ -570,24 +596,43 @@ func delete_node(node_name: StringName) -> void:
 		push_warning("Cannot delete root node.")
 		return
 	
-	if node.component is Composite:
-		var new_children: Array[RationalComponent] = []
-		node.component.set_children(new_children)
+	#node.set_block_signals(true)
+	#if node.component is Composite:
+		#var new_children: Array[RationalComponent] = []
+		#node.component.set_children(new_children)
 	
 	for con: Dictionary in get_connection_list_from_node(node_name):
+		disconnect_node(con.from_node, 0, con.to_node, 0)
 		if con.to_node == node_name:
 			var parent: RationalComponent = node_get_comp(con.from_node)
 			parent.remove_child(node.component)
 	
+	
+	
 	remove_child(node)
 	node.queue_free()
+
+func delete_component(comp: RationalComponent) -> void:
+	var node:= comp_get_graph_node(comp)
+	if not node or comp == get_root_component(): return
+	var parent:= node_get_parent(node.name)
+	
+	action_handle.create_action("Delete Component(s)")
+	
+	undo_redo.add_undo_method(self, &"add_component", comp, node.position_offset)
+	if parent:
+		undo_redo.add_undo_method(parent.component, &"add_child", comp)
+		undo_redo.add_do_method(parent.component, &"remove_child", comp)
+	undo_redo.add_do_method(self, &"delete_node", node.name)
+	
+	action_handle.commit(true)
 
 
 func node_get_children(node: RationalGraphNode) -> Array[RationalGraphNode]:
 	if not node: return []
 	var result: Array[RationalGraphNode]
 	for con: Dictionary in get_connection_list_from_node(node.name):
-		if con.from_node == node.name:
+		if con.from_node == node.name and has_node(String(con.to_node)):
 			result.push_back(get_node(String(con.to_node)))
 	return result
 
@@ -595,7 +640,7 @@ func node_get_children(node: RationalGraphNode) -> Array[RationalGraphNode]:
 ## Only updates child connections.
 func update_node_connections(node: RationalGraphNode) -> void:
 	for child_node: RationalGraphNode in node_get_children(node):
-		if child_node and node.component.has_child(child_node.component): continue
+		if not child_node or node.component.has_child(child_node.component): continue
 		disconnect_node(node.name, 0, child_node.name, 0)
 	
 	for child: RationalComponent in node.component.get_children():
@@ -888,8 +933,10 @@ func _gui_input(event: InputEvent) -> void:
 			
 			KEY_R:
 				printt(Rect2(scroll_offset/zoom, size/zoom))
+			
 			KEY_T:
 				active_root.root.print_tree_pretty()
+			
 			KEY_L:
 				var focus_owner: Control = get_viewport().gui_get_focus_owner()
 				print(focus_owner.component if focus_owner is RationalGraphNode else focus_owner)
@@ -983,33 +1030,43 @@ func _on_end_node_move() -> void:
 	queue_redraw.call_deferred()
 	reset_dragged_nodes = false
 
+	
+func _on_node_selected(node: Node) -> void:
+	selection.add_component(node.component)
 
-func _on_node_selection_changed(node: Node) -> void:
-	if block_selection_signal: return
-	selected_changed.emit(get_selected_components())
+func _on_node_deselected(node: Node) -> void:
+	selection.remove_component(node.component)
 
 
 func _on_node_dragged(from: Vector2, to: Vector2, node: RationalGraphNode) -> void:
 	#print("%s dragged %v => %v" % [node.component.resource_name, from, to])
+	if from == to:
+		return
 	
 	if reset_dragged_nodes:
 		node.position_offset = from
 		return
 	
+	update_component_index(node)
 	action_handle.create_action("Moved Component(s)", UndoRedo.MERGE_ALL)
-	undo_redo.add_undo_property(node, &"position_offset", from)
-	undo_redo.add_do_property(node, &"position_offset", to)
+	
+	undo_redo.add_do_method(self, &"move_component", node.component, to)
+	undo_redo.add_undo_method(self, &"move_component", node.component, from)
 	action_handle.commit(false)
 	
-	update_component_index(node)
+## Creates Action for UndoRedo.
+func move_component(comp: RationalComponent, to_offset: Vector2) -> void:
+	if not comp_has_node(comp): return
+	comp_get_graph_node(comp).position_offset = to_offset
+
+func comp_set_position_offset(comp: RationalComponent, position_offset: Vector2) -> void:
+	if not comp_has_node(comp): return
+	comp_get_graph_node(comp).position_offset = position_offset
 
 
 func _on_component_children_changed(node: RationalGraphNode) -> void:
 	update_node_connections(node)
 
-func _get_connection_line(from_position: Vector2, to_position: Vector2) -> PackedVector2Array:
-	const VECS: PackedVector2Array = [Vector2(-9999999, -9999999), Vector2(-9999999, -9999999)]
-	return VECS
 
 func has_selected_node() -> bool:
 	for node: RationalGraphNode in get_graph_nodes():
@@ -1123,23 +1180,12 @@ func disconnect_hovered_port() -> bool:
 			action_handle.reparent_item(node_get_comp(con.to_node), null, node.component, UndoRedo.MERGE_ALL)
 	
 	return true
-#
-#func is_menu_in_screen_rect() -> bool:
-	#return Rect2(get_screen_position(), size).has_point(menu.position)
 
-#func _on_menu_pressed(index: int) -> void:
-	##print("RightClick Menu Item pressed: %s" % menu.get_item_text(index))
-	#match menu.get_item_text(index):
-		#"Rename" when not is_menu_in_screen_rect():
-			#tree_display.edit_selected(true)
-		#
-	#menu.get_item_metadata(index).call()
 func local_to_offset(local: Vector2) -> Vector2:
 	return (local + scroll_offset)  / zoom
 
-
 func _on_node_position_offset_changed(node: RationalGraphNode) -> void:
-	queue_redraw()
+	queue_redraw.call_deferred()
 
 func get_root_component() -> RationalComponent:
 	return active_root.root if active_root else null
@@ -1150,3 +1196,7 @@ func toggle_layout() -> void:
 func update_layout_button() -> void:
 	layout_button.icon = EditorInterface.get_editor_theme().get_icon(&"MoveRight" if horizontal_layout else &"MoveDown", &"EditorIcons")
 	layout_button.tooltip_text = "Switch to Vertical layout" if horizontal_layout else "Switch to Horizontal layout"
+
+func _get_connection_line(from_position: Vector2, to_position: Vector2) -> PackedVector2Array:
+	const VECS: PackedVector2Array = [Vector2(-9999999, -9999999), Vector2(-9999999, -9999999)]
+	return VECS

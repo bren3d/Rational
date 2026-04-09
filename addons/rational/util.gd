@@ -7,13 +7,16 @@ static func get_cache() -> Object:
 	return get_plugin().cache
 
 static func get_class_data() -> Object:
-	return get_cache().class_data
+	return get_plugin().class_data
 
 static func get_main_editor() -> Object:
 	return get_plugin().editor
 
 static func get_action_handle() -> Object:
 	return get_plugin().action_handle
+
+static func get_selection() -> Object:
+	return get_plugin().selection
 
 static func get_undo_redo() -> Object:
 	return EditorInterface.get_editor_undo_redo()

@@ -20,7 +20,6 @@ signal loaded
 
 var root: RationalComponent: set = set_root, get = get_root
 
-
 var path: String: set = set_path, get = get_path
 
 var name: String: set = set_name
@@ -184,26 +183,17 @@ func is_save_path_valid(save_path: String) -> bool:
 
 ## Clears/Modifies path/root if needed. Call after filesystem is loaded.
 func validate_path() -> void:
-	if is_temp():
-		return
-	
-	if ResourceLoader.exists(path, "Resource"):
-		if not root or root.resource_path != path:
-			root = ResourceLoader.load(path)
+	if is_temp() or ResourceLoader.exists(path, "Resource"):
 		return
 	
 	if is_builtin():
-		var scene_file: String = get_scene_file()
-		if not is_scene_subresource():
-			printerr("Invalid scene '%s' for RootData '%s'" % [scene_file, name])
-			clear_path()
-		
-		return
+		if is_scene_subresource():
+			return
+		printerr("RootData '%s' not found in scene '%s'" % [name, get_scene_file()])
 	
-	if root and is_save_path_valid(path):
+	elif root and is_save_path_valid(path):
 		root.take_over_path(path)
 		ResourceSaver.save(root, path)
-		#root = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE)
 		return
 	
 	printerr("Invalid RootData path: %s. Clearing..." % path)
@@ -255,11 +245,15 @@ func load_path() -> void:
 
 
 func load_deferred() -> Error:
+	
+	# Use Cached Ref for built-ins to avoid ResourceLoader throwing errors 'Resource file not found' and 'Error loading resource' .
+	var check_callable: Callable = ResourceLoader.has_cached if is_builtin() else ResourceLoader.exists
+	var load_callable: Callable = ResourceLoader.get_cached_ref if is_builtin() else ResourceLoader.load.bind("", ResourceLoader.CACHE_MODE_REPLACE)
+	
 	var start_tick: int = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start_tick < TIMEOUT_MSEC:
-		if ResourceLoader.exists(path):
-			
-			var res: Resource = ResourceLoader.load(path, "Resource", ResourceLoader.CACHE_MODE_REPLACE)
+		if check_callable.call(path):
+			var res: Resource = load_callable.call(path)
 			if not res is RationalComponent:
 				printerr("Resource at path '%s' is not type 'RationalComponent'." % path)
 				return ERR_FILE_UNRECOGNIZED
@@ -270,6 +264,7 @@ func load_deferred() -> Error:
 		await Engine.get_main_loop().process_frame
 	
 	return ERR_TIMEOUT
+
 
 
 func mark_scene_unsaved() -> void:
@@ -299,7 +294,6 @@ func _on_tree_changed() -> void:
 func is_loaded() -> bool:
 	return not get_meta(&"_loading", false)
 
-
 ## Returns [code]true[/code] if root is saved to file.
 func is_external() -> bool:
 	return FileAccess.file_exists(get_path())
@@ -312,11 +306,13 @@ func is_builtin() -> bool:
 func is_temp() -> bool:
 	return not get_path()
 
+## Returns file of scene if root is built-in else returns [code]""[/code]
 func get_scene_file() -> String:
-	return get_path().get_slice("::", 0)
+	return get_path().get_slice("::", 0) if is_builtin() else ""
 
+## Returns Resource ID in scene if root is built-in else returns [code]""[/code]
 func get_scene_id() -> String:
-	return get_path().get_slice("::", 1)
+	return get_path().get_slice("::", 1) if is_builtin() else ""
 
 func is_scene_open() -> bool:
 	assert(is_builtin(), "Cannot check scene for non-built-in Resource %s" % self)

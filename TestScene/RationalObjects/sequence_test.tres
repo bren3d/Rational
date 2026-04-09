@@ -25,7 +25,7 @@ script = ExtResource("3_8kqhx")
 
 [resource]
 resource_local_to_scene = true
-resource_name = "Sequence"
+resource_name = "SequenceTest"
 script = ExtResource("2_ye40l")
 children = Array[ExtResource("1_j0yi3")]([SubResource("Resource_hy302"), SubResource("Resource_chyu0")])
 metadata/_custom_type_script = "uid://b084a27qrwlfn"

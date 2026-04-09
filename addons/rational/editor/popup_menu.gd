@@ -82,8 +82,9 @@ func _init() -> void:
 	index_pressed.connect(_on_index_pressed)
 
 
-func popup_at(options: int, at_position: Vector2) -> void:
+func popup_at(options: int, at_position: Vector2, disabled_options: int = ITEM_NONE) -> void:
 	set_menu_options(options)
+	set_disabled(disabled_options)
 	popup(Rect2(at_position, Vector2.ZERO))
 
 
@@ -160,6 +161,12 @@ func set_menu_options(options: int = ITEM_NONE) -> void:
 	
 	if is_item_separator(item_count - 1):
 		remove_item(item_count - 1)
+
+func set_disabled(options: int = ITEM_NONE) -> void:
+	if not options: return
+	for index: int in item_count:
+		if is_item_separator(index): continue
+		set_item_disabled(index, options & get_item_id(index))
 
 
 func _on_index_pressed(index: int) -> void:

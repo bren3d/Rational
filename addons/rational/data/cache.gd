@@ -2,9 +2,6 @@
 extends RefCounted
 ## Manages [RationalComponent] roots and stores editor data.
 
-const Util := preload("../util.gd")
-const ClassData := preload("rational_class_data.gd")
-
 const FILENAME: String = "cache.cfg"
 
 const SECTION: String = "root_data_list"
@@ -22,15 +19,15 @@ signal request_save_as(data: RationalComponent)
 ## Emitted when the selected RationalComponent tree root changes.
 signal edited_tree_changed(data: RootData)
 
-var class_data: ClassData
-
 ## Class icon textures.
 var class_icons: Dictionary[StringName, Texture2D]
 
 var root_data_list: Array[RootData]
 
-var edited_tree: RootData: set = set_edited_tree
+var edited_tree: RootData: set = set_edited_tree, get = get_edited_tree
 
+func get_edited_tree() -> RootData:
+	return edited_tree
 
 func set_edited_tree(val: RootData) -> void:
 	if edited_tree == val: return
@@ -64,8 +61,7 @@ func edit_rational_tree(tree: RationalTree) -> void:
 func _init() -> void:
 	EditorInterface.get_file_system_dock().files_moved.connect(_on_file_moved)
 	EditorInterface.get_file_system_dock().resource_removed.connect(_on_resource_removed)
-	Util.get_plugin().scene_closed.connect(_on_scene_closed, CONNECT_DEFERRED)
-	class_data = ClassData.new()
+	Engine.get_singleton(&"Rational").scene_closed.connect(_on_scene_closed, CONNECT_DEFERRED)
 
 func _on_scene_closed(filepath: String) -> void:
 	for rd: RootData in get_data_list():
@@ -167,10 +163,10 @@ func get_save_path(file: String = FILENAME) -> String:
 	return get_script().resource_path.get_base_dir().path_join(file)
 
 func get_unsaved_status(scene_path: String) -> String:
-	var autosave: bool = Util.get_setting("autosave", true)
-	
-	if not autosave:
-		return "ERROR BUG: Autosave set to false."
+	#var autosave: bool = Util.get_setting("autosave", true)
+	#
+	#if not autosave:
+		#return "ERROR BUG: Autosave set to false."
 	
 	for rd: RootData in get_data_list():
 		if not scene_path or rd.path.contains(scene_path): 

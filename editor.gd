@@ -1,13 +1,31 @@
 @tool
 extends EditorScript
 
-const Util := preload("res://addons/rational/util.gd")
+class TestIter:
+	const ARRAY:= ["ZERO", "ONE", "TWO"]
+	func _iter_init(iter: Array) -> bool:
+		iter[0] = [0, ARRAY]
+		return iter[0][0] < iter[0][1].size()
 
-const TEST_SCENE_PATH: String = "res://TestScene/test_scene_character.tscn"
+	func _iter_next(iter: Array) -> bool:
+		iter[0][0] = iter[0][0] + 1
+		return iter[0][0] < iter[0][1].size()
+
+	func _iter_get(iter: Variant) -> Variant:
+		return iter[1][iter[0]] 
+
+
+const SCENE_PATH:= "res://TestScene/test_scene_character.tscn"
 
 const RATIONAL_SCRIPT_PATH := "res://addons/rational/components/rational_component.gd"
+
+const Util := preload("res://addons/rational/util.gd")
+
+const RationalPlugin := preload("res://addons/rational/plugin.gd")
+const InpsectorPlugin := preload("res://addons/rational/plugins/inspector/inspector_plugin.gd")
 const Cache := preload("res://addons/rational/data/cache.gd")
 const ClassData := preload("res://addons/rational/data/rational_class_data.gd")
+const Selection := preload("res://addons/rational/editor/selection.gd")
 
 const Main := preload("res://addons/rational/editor/main.gd")
 const RootFileList := preload("res://addons/rational/editor/root_file_list.gd")
@@ -16,72 +34,43 @@ const GraphEditor := preload("res://addons/rational/editor/graph_edit.gd")
 const Settings := preload("res://addons/rational/settings.gd")
 const ActionHandle := preload("res://addons/rational/editor/action_handle.gd")
 
-enum {
-	ITEM_NONE = 0,
-	ITEM_ADD_CHILD = 1, 
-	ITEM_CUT = 2, 
-	ITEM_COPY = 4, 
-	ITEM_PASTE = 8, 
-	ITEM_DUPLICATE = 16, 
-	ITEM_RENAME = 32, 
-	ITEM_CHANGE_TYPE = 64, 
-	ITEM_SAVE_AS_ROOT = 128, 
-	ITEM_DOCUMENTATION = 256, 
-	ITEM_DELETE = 512,
-	ITEM_ADD_NODE_HERE = 1024,
-	ITEM_INSTANTIATE_NODE_HERE = 2048,
-	ITEM_INSTANTIATE_NODE = 4096,
-	ITEM_PASTE_HERE = 8192,
-	
-	ITEM_ALL = 4294967295,
-}
-
-@export var comps: Array[RationalComponent]
-
 func _run() -> void:
 	print("Running...")
-	var inspector := EditorInterface.get_inspector()
-	#const PATH:= "res://TestScene/test_scene_character.tscn::Resource_k2f85"
-	var scene := EditorInterface.get_edited_scene_root()
-	#
 	if not Engine.has_singleton(&"Rational"): return
-	var plugin: EditorPlugin = Engine.get_singleton(&"Rational")
-	var cache: Cache = plugin.cache
-	var class_data: ClassData = cache.class_data
-	var main: Main = plugin.editor
+	var plugin: RationalPlugin = Engine.get_singleton(&"Rational")
+	var inspector := EditorInterface.get_inspector()
+	var undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
+	var ur: UndoRedo = undo_redo.get_history_undo_redo(undo_redo.GLOBAL_HISTORY)
+	var scene := EditorInterface.get_edited_scene_root()
 	
+	var inspector_plugin: InpsectorPlugin = plugin.inspector_plugin
+	var cache: Cache = plugin.cache
+	var class_data: ClassData = plugin.class_data
+	var selection: Selection = plugin.selection
+	var action_handle: ActionHandle = plugin.action_handle
+	
+	var main: Main = plugin.editor
 	var root_file_tree: RootFileList = main.root_file_tree
 	var tree_display: TreeDisplay = main.tree_display
 	var graph_edit: GraphEditor = main.graph_edit
-	#const FALLBACK = preload("uid://cincrbrw3hw1y")
+	
 	const PATH := "res://TestScene/test_scene_character.tscn::Resource_4t32f"
 	const PATH2 := "res://TestScene/test_scene_character.tscn::Resource_q1v5c"
-	var SCENE_PATH:= "res://TestScene/test_scene_character.tscn"
-	#print(load("uid://dbllgp7c366kf").resource_name)
-	var cfg: ConfigFile = ConfigFile.new()
-	var err:= cfg.load(cache.get_save_path())
-	for data in cfg.get_value(cache.SECTION, cache.KEY_ROOT_DATA):
-		print(JSON.stringify(data, "\t"), "\n",)
-	#print(cfg.get_value(cache.SECTION, cache.KEY_ROOT_DATA).size())
-	#print(graph_edit.updating_graph)
-	#print(graph_edit.arranging_nodes)
-	#print(graph_edit.restoring_state)
-	
-	#graph_edit.updating_graph = false
-	#graph_edit.arranging_nodes = false
-	#graph_edit.restoring_state = false
-	
-	#var packed := load(SCENE_PATH)
-	#var body:= FileAccess.get_file_as_string(SCENE_PATH)
-	#print(error_string(FileAccess.get_open_error()))
-	#print(body)
-	#printt(cache.get_data_list())
-	#print(plugin.scene_closed.is_connected(cache._on_scene_closed))
 	
 	
-	#print("Exists: %s | Cached %s | Resource: %s" % [ResourceLoader.exists(PATH2), ResourceLoader.has_cached(PATH2), ResourceLoader.load(PATH2)])
-	#print()
-	#print(ResourceLoader.has_cached(PATH2))
+	#print_selection()
+	#tree_display.selection = Util.get_selection()
+	#graph_edit.selection = Util.get_selection()
+	#tree_display.get_root().get_child(0).select(0)
+
+func print_selection() -> void:
+	var data: Dictionary = Engine.get_singleton(&"Rational").selection._data
+	for key in data:
+		print("- -%s- -" % key)
+		for comp in data[key].selection:
+			print("\t%s" % comp)
+	
+
 
 func get_all_components() -> Array[RationalComponent]:
 	var result: Array[RationalComponent]

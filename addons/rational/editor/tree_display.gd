@@ -5,6 +5,7 @@ const Util := preload("res://addons/rational/util.gd")
 const Cache:= preload("../data/cache.gd")
 
 const EditorGraph:= preload("graph_edit.gd")
+const Selection:= preload("selection.gd")
 
 const Menu := preload("popup_menu.gd")
 const ActionHandle := preload("action_handle.gd")
@@ -17,16 +18,9 @@ const COLOR_VISIBLE: Color = Color.WHITE
 ##
 signal selected_items_changed(items: Array[RationalComponent])
 
-## Emitted when we want the GraphEdit Editor to perform the menu action.
-signal menu_request(id: int)
-
-## Emitted when we want to select and center the component (by choosing the corresponding menu option).
-signal show_component_in_editor(comp: RationalComponent)
-
 @export var tree_filter_line_edit: LineEdit
 
 @export var graph_edit: EditorGraph
-
 
 var menu: Menu
 
@@ -36,13 +30,17 @@ var cache: Cache
 
 var block_selection_signal: bool = false
 
+var selection: Selection
 var action_handle: ActionHandle
 var undo_redo: EditorUndoRedoManager
 
-#var undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
-
 func _ready() -> void:
+	selection = Util.get_selection()
+	selection.selection_changed.connect(_on_selection_changed)
+	
+	action_handle = Util.get_action_handle()
 	undo_redo = Util.get_undo_redo()
+	
 	item_mouse_selected.connect(_on_item_mouse_selected)
 	multi_selected.connect(_on_multi_selected, CONNECT_DEFERRED)
 	button_clicked.connect(_on_button_clicked)
@@ -78,7 +76,7 @@ func get_item_at_popup() -> TreeItem:
 
 
 func show_in_editor() -> void:
-	show_component_in_editor.emit(item_get_comp(get_item_at_popup()))
+	action_handle.show_in_editor(item_get_comp(get_item_at_popup()))
 
 ## [param upward] dictates the direction of the move.
 func shift_selected(upward: bool) -> void:
@@ -119,29 +117,25 @@ func paste_as_sibling() -> void:
 func _on_menu_id_pressed(id: int) -> void:
 	match id:
 		Menu.ITEM_ADD_CHILD:
-			pass
+			action_handle.prompt_add_child(item_get_comp(get_selected()))
 		
 		Menu.ITEM_INSTANTIATE_NODE:
 			pass
 		
-		Menu.ITEM_MOVE_UP:
-			move_up()
+		Menu.ITEM_MOVE_UP:	move_up()
 		
-		Menu.ITEM_MOVE_DOWN:
-			move_down()
+		Menu.ITEM_MOVE_DOWN:	move_down()
 		
-		Menu.ITEM_RENAME:
-			rename()
+		Menu.ITEM_RENAME:	rename()
+		Menu.ITEM_COPY:		action_handle.copy(selection.get_selected_components())
 		
-		Menu.ITEM_CUT, Menu.ITEM_COPY, Menu.ITEM_DUPLICATE, Menu.ITEM_PASTE, Menu.ITEM_CHANGE_TYPE, \
-				Menu.ITEM_SAVE_AS_ROOT, Menu.ITEM_DOCUMENTATION, Menu.ITEM_DELETE:
-			menu_request.emit(id)
+		#Menu.ITEM_CUT, Menu.ITEM_COPY, Menu.ITEM_DUPLICATE, Menu.ITEM_PASTE, Menu.ITEM_CHANGE_TYPE, \
+				#Menu.ITEM_SAVE_AS_ROOT, Menu.ITEM_DOCUMENTATION, Menu.ITEM_DELETE:
+			#menu_request.emit(id)
 		
-		Menu.ITEM_SHOW_IN_EDITOR:
-			show_in_editor()
+		Menu.ITEM_SHOW_IN_EDITOR:	show_in_editor()
 		
-		Menu.ITEM_PASTE_AS_SIBLING:
-			paste_as_sibling()
+		Menu.ITEM_PASTE_AS_SIBLING:	paste_as_sibling()
 
 
 func get_menu_options() -> int:
@@ -185,15 +179,15 @@ func set_active_root(data: RootData) -> void:
 	populate_tree()
 	if active_root:
 		active_root.tree_changed.connect(_on_root_tree_changed)
+	
+	_on_selection_changed()
 
 func _on_root_tree_changed() -> void:
 	reload_tree()
 
 func reload_tree() -> void:
-	#if not active_root: return
-	var selected: Array[RationalComponent] = get_selected_components()
 	populate_tree()
-	set_selected_components.call_deferred(selected)
+	
 
 func populate_tree() -> void:
 	clear()
@@ -206,6 +200,7 @@ func populate_tree() -> void:
 	
 	add_component(active_root.root)
 	filter_items(tree_filter_line_edit.text if tree_filter_line_edit else "")
+	set_selected_components.call_deferred(selection.get_selected_components())
 
 
 func add_component(comp: RationalComponent, parent: TreeItem = null, recursive: bool = true) -> void:
@@ -320,20 +315,21 @@ func get_all_selected() -> Array[TreeItem]:
 	return selected_items
 
 func get_selected_components() -> Array[RationalComponent]:
-	var selected_comps: Array[RationalComponent]
-	for i: TreeItem in get_all_selected():
-		selected_comps.push_back(item_get_comp(i))
-	return selected_comps
+	return selection.get_selected_components()
 
 func set_selected_components(components: Array[RationalComponent]) -> void:
-	block_selection_signal = true
 	for item: TreeItem in get_all_items():
-		if item_get_comp(item) in components:
-			item.select(0)
-			item.uncollapse_tree()
-		else:
-			item.deselect(0)
-	block_selection_signal = false
+		item_set_selected(item, item_get_comp(item) in components)
+
+
+## Sets item selected = [param selected] and uncollapses tree if selected. 
+func item_set_selected(item: TreeItem, selected: bool) -> void:
+	if not selected:
+		item.deselect(0)
+		return
+	
+	item.select(0)
+	item.uncollapse_tree()
 
 
 ## Sets [param item.root.resource_name] if different.
@@ -411,11 +407,11 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 
 #endregion 
 
+func _on_selection_changed() -> void:
+	set_selected_components(selection.get_selected_components())
 
 func _on_multi_selected(item: TreeItem, column: int, selected: bool) -> void:
-	if block_selection_signal: return
-	selected_items_changed.emit(get_selected_components())
-
-
-func _on_graph_edit_selected_changed(components: Array[RationalComponent]) -> void:
-	set_selected_components(components)
+	if selected:
+		selection.add_component(item_get_comp(item))
+		return
+	selection.remove_component(item_get_comp(item))

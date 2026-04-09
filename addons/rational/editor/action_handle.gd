@@ -1,23 +1,30 @@
 @tool
 extends RefCounted
 
-#var undo_redo_map: Dictionary[RootData]
+const DEBUG: bool = false
+
+signal show_in_editor_request(comp: RationalComponent)
+
+var cache: RefCounted
+var selection: RefCounted
 
 var undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
 
 var clipboard: Array[RationalComponent]: set = set_clipboard
 
-# Tracks when history should be cleared.
-var last_edited_object: Object
-var current_edited_object: Object: set = set_current_edited_object
+var current_edited_object: RootData: set = set_current_edited_object
 
-var block_action_commits: bool = false
 
 func _init() -> void:
-	undo_redo.version_changed.connect(_on_version_changed)
+	init_action_handle.call_deferred()
+
+func init_action_handle() -> void:
 	if not Engine.has_singleton(&"Rational"): return
-	Engine.get_singleton(&"Rational").cache.edited_tree_changed.connect(set_current_edited_object)
-	set_current_edited_object(Engine.get_singleton(&"Rational").cache.edited_tree)
+	undo_redo.version_changed.connect(_on_version_changed)
+	selection = Engine.get_singleton(&"Rational").selection
+	cache = Engine.get_singleton(&"Rational").cache
+	cache.edited_tree_changed.connect(set_current_edited_object)
+	set_current_edited_object(cache.edited_tree)
 
 func move_child_component(parent: RationalComponent, child: RationalComponent, to_idx: int,
 			merge_mode: UndoRedo.MergeMode = UndoRedo.MERGE_ALL, execute: bool = true) -> void:
@@ -36,15 +43,20 @@ func move_child(parent: RationalComponent, from_idx: int, to_idx: int,
 func reparent_item(comp: RationalComponent, target_parent: RationalComponent = null, current_parent: RationalComponent = null, 
 			merge_mode: UndoRedo.MergeMode = UndoRedo.MERGE_ALL, execute: bool = true) -> void:	
 	
-	create_action("Reparent Component(s)", merge_mode, )
+	if not comp or (not target_parent and not current_parent):
+		push_warning("Cannot Reparent. Component missing or both parent components missing.")
+		return
 	
+	create_action("Reparent Component(s)", merge_mode, )
 	if target_parent:
 		undo_redo.add_undo_method(target_parent, &"remove_child", comp)
-		undo_redo.add_do_method(target_parent, &"add_child", comp)
 	
 	if current_parent:
 		undo_redo.add_undo_method(current_parent, &"add_child", comp)
 		undo_redo.add_do_method(current_parent, &"remove_child", comp)
+	
+	if target_parent:
+		undo_redo.add_do_method(target_parent, &"add_child", comp)
 	
 	commit(execute)
 
@@ -63,19 +75,19 @@ func add_new_child(path: String, parent: RationalComponent) -> void:
 func add_child(parent: RationalComponent, child: RationalComponent, 
 			merge_mode: UndoRedo.MergeMode = UndoRedo.MERGE_ALL, execute: bool = true) -> void:
 	if not parent or not child or not parent.can_parent(child): return
-	create_action("Add Component", merge_mode, )
-	undo_redo.add_do_method(parent, &"add_child", child)
+	create_action("Add Child Component", merge_mode, )
+	#undo_redo.force_fixed_history()
 	undo_redo.add_undo_method(parent, &"remove_child", child)
+	undo_redo.add_do_method(parent, &"add_child", child)
 	commit(execute)
 
 func remove_child(parent: RationalComponent, child: RationalComponent, 
 			merge_mode: UndoRedo.MergeMode = UndoRedo.MERGE_ALL, execute: bool = true) -> void:
-	if not parent: return
+	if not parent or not parent.has_child(child): return
 	create_action("Unparent Component", merge_mode, )
 	undo_redo.add_do_method(parent, &"add_child", child)
 	undo_redo.add_undo_method(parent, &"remove_child", child)
 	commit(execute)
-	
 
 func paste(parent: RationalComponent, merge_mode: UndoRedo.MergeMode = UndoRedo.MERGE_ALL, execute: bool = true) -> void:
 	if not parent is Composite or not has_clipboard(): return
@@ -152,6 +164,14 @@ func cut_node(node: Node, merge_mode: UndoRedo.MergeMode = UndoRedo.MERGE_ALL, e
 func copy(items: Array[RationalComponent]) -> void:
 	set_clipboard(items)
 
+func show_in_editor(comp: RationalComponent) -> void:
+	if not comp: return
+	show_in_editor_request.emit(comp)
+
+func open_documentation(comp: RationalComponent) -> void:
+	if not comp: return
+	EditorInterface.get_script_editor().goto_help("class_name:%s" % Engine.get_singleton(&"Rational").class_data.comp_get_class(comp))
+
 ## Filters [param components] to remove those that are children of others in [param components].
 func filter_child_components(input_components: Array[RationalComponent], duplicate_mode: int = Resource.DEEP_DUPLICATE_ALL) -> Array[RationalComponent]:
 	var components: Array[RationalComponent] = input_components.duplicate_deep(duplicate_mode)
@@ -171,41 +191,51 @@ func _instantiate_component_from_path(path: String) -> RationalComponent:
 	comp.set_name(script.get_global_name())
 	return comp
 
-func update_edited_object() -> void:
-	if current_edited_object == last_edited_object: return
-	if last_edited_object:
-		clear_history()
-	last_edited_object = current_edited_object
 
 func _on_version_changed() -> void:
-	var ur : UndoRedo = get_history()
-	
+	var ur:= get_history()
+	#if undo_redo.get_object_history_id()
+
+func swap_to_data(data: RootData) -> void:
+	cache.edit_tree(data)
+
+func _on_closed(data: RootData) -> void:
+	if data.is_builtin():
+		clear_history()
 
 #region UndoRedo Wrappers
 
 func create_action(name: String, merge_mode: UndoRedo.MergeMode = UndoRedo.MERGE_ALL,
 			backward_undo_ops: bool = false, mark_unsaved: bool = false) -> void:
-	update_edited_object()
-	undo_redo.create_action(name, merge_mode, current_edited_object, backward_undo_ops, mark_unsaved)
-	#undo_redo.force_fixed_history()
+	
+	if current_edited_object and not current_edited_object.closed.is_connected(_on_closed):
+		current_edited_object.closed.connect(_on_closed, CONNECT_APPEND_SOURCE_OBJECT)
+	
+	undo_redo.create_action(name, merge_mode, null, backward_undo_ops, mark_unsaved)
+	undo_redo.add_undo_method(self, &"swap_to_data", current_edited_object)
+	undo_redo.add_do_method(self, &"swap_to_data", current_edited_object)
+	
+	if DEBUG:
+		print("Created action: '%s' | Merge: %s | Backwards: %s | Mark Unsaved: %s" % [name, "ALL" if merge_mode else "DISABLE", backward_undo_ops, mark_unsaved])
 
 func commit(execute: bool = true) -> void:
 	undo_redo.commit_action(execute)
-
-func clear_history() -> void:
-	pass
-	#if undo_redo.get_history_undo_redo(EditorUndoRedoManager.GLOBAL_HISTORY).get_history_count() > 0:
-		#undo_redo.clear_history(EditorUndoRedoManager.GLOBAL_HISTORY)
-		#print("History Cleared...")
+	if DEBUG:
+		var ur:= get_history()
+		print("Commited action #%2d - %s" % [ur.get_current_action(), ur.get_current_action_name()])
 
 func get_history() -> UndoRedo:
 	return undo_redo.get_history_undo_redo(EditorUndoRedoManager.GLOBAL_HISTORY)
 
-func add_do_reference(object: Object) -> void:
-	undo_redo.add_do_reference(object)
+func clear_history() -> void:
+	undo_redo.clear_history(EditorUndoRedoManager.GLOBAL_HISTORY)
 
-func add_undo_reference(object: Object) -> void:
-	undo_redo.add_do_reference(object)
+#
+#func add_do_reference(object: Object) -> void:
+	#undo_redo.add_do_reference(object)
+#
+#func add_undo_reference(object: Object) -> void:
+	#undo_redo.add_do_reference(object)
 
 
 #endregion UndoRedo Wrappers
@@ -230,5 +260,5 @@ func set_clipboard(value: Array[RationalComponent]) -> void:
 func get_undo_redo() -> Object:
 	return undo_redo
 
-func set_current_edited_object(obj: Object) -> void:
+func set_current_edited_object(obj: RootData) -> void:
 	current_edited_object = obj

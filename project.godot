@@ -19,9 +19,12 @@ run/main_scene="res://TestScene/test_scene_character.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 boot_splash/bg_color=Color(0.0859838, 0.0859838, 0.0859837, 1)
 boot_splash/show_image=false
+config/icon="uid://clj3qqsrh4fdg"
 
 [debug]
 
+file_logging/enable_file_logging=true
+file_logging/max_log_files=10
 gdscript/warnings/unassigned_variable=0
 gdscript/warnings/unused_variable=0
 gdscript/warnings/unused_local_constant=0
@@ -57,7 +60,8 @@ folder_colors={
 "res://addons/rational/plugins/inspector/": "teal",
 "res://addons/rational/plugins/resources/": "gray",
 "res://addons/rational/scripts/": "yellow",
-"res://script_templates/": "gray"
+"res://script_templates/": "gray",
+"res://z_editor_scripts/": "purple"
 }
 
 [importer_defaults]

@@ -47,8 +47,8 @@ func _ready() -> void:
 
 func _on_item_mouse_selected(mouse_position: Vector2, mouse_button_index: int) -> void:
 	if mouse_button_index == MOUSE_BUTTON_RIGHT:
-		popup.position = get_screen_position() + mouse_position
-		popup.popup()
+		
+		popup.popup(Rect2(get_screen_position() + mouse_position, Vector2.ZERO))
 
 func build_list() -> void:
 	clear()
@@ -109,7 +109,7 @@ func add_data(data: RootData) -> void:
 	item.set_metadata(0, data)
 	update_item(item)
 	data.changed.connect(_on_data_changed.bind(data))
-	data.unsaved_changes_changed.connect(_on_data_changed.bind(data))
+	data.unsaved_changes_changed.connect(_on_unsaved_changes_changed.bind(data))
 	data.closed.connect(_on_data_closed.bind(data))
 
 func add_root(root: RationalComponent, force_path: String = "") -> void:
@@ -142,6 +142,11 @@ func _on_data_closed(data: RootData) -> void:
 
 func _on_data_changed(data: RootData) -> void:
 	update_item(data_get_item(data))
+
+func _on_unsaved_changes_changed(data: RootData) -> void:
+	var item: TreeItem = data_get_item(data)
+	if item:
+		item.set_text(0, data_get_name(data))
 
 func filter_list(filter: String = "") -> void:
 	for item: TreeItem in get_root().get_children():
