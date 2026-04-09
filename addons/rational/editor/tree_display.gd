@@ -197,19 +197,26 @@ func reload_tree() -> void:
 
 func populate_tree() -> void:
 	clear()
-	if active_root:
-		add_component(active_root.root)
-		filter_items(tree_filter_line_edit.text if tree_filter_line_edit else "")
+	if not active_root: 
+		return
+	
+	if not active_root.is_loaded():
+		active_root.loaded.connect(populate_tree, CONNECT_ONE_SHOT)
+		return
+	
+	add_component(active_root.root)
+	filter_items(tree_filter_line_edit.text if tree_filter_line_edit else "")
 
 
 func add_component(comp: RationalComponent, parent: TreeItem = null, recursive: bool = true) -> void:
+	if not comp: return
 	var item: TreeItem = create_item(parent)
 	item.set_metadata(0, comp)
-	item.set_icon(0, cache.comp_get_icon(comp))
+	item.set_icon(0, Util.comp_get_icon(comp))
 	item.add_button(0, get_visible_icon(true), -1, false, "Toggle Visibility")
 	item.set_meta(META_VISIBLE, true)
 	item.set_text(0, generate_unique_name(item))
-	item.set_tooltip_text(0, "%s\nType: %s" % [comp.resource_name, cache.comp_get_class(comp)])
+	item.set_tooltip_text(0, "%s\nType: %s" % [comp.resource_name, Util.comp_get_class(comp)])
 	
 	const SIGNAL_NAME: String = "changed"
 	item.add_user_signal(SIGNAL_NAME)
@@ -234,7 +241,7 @@ func item_apply_filter(item: TreeItem, filter_text: String) -> bool:
 	return item.visible
 
 func filter_items(text: String) -> void:
-
+	
 	if not text:
 		get_root().call_recursive("set_visible", true)
 		return
@@ -250,6 +257,7 @@ func item_get_comp(item: TreeItem) -> RationalComponent:
 
 
 func item_get_subtree(item: TreeItem) -> Array[TreeItem]:
+	if not item: return []
 	var result: Array[TreeItem] = [item]
 	for child: TreeItem in item.get_children():
 		result.append_array(item_get_subtree(child))
@@ -334,7 +342,7 @@ func generate_unique_name(item: TreeItem) -> String:
 	var comp: RationalComponent = item_get_comp(item)
 	
 	if not comp.resource_name:
-		comp.resource_name = cache.comp_get_class(comp)
+		comp.resource_name = Util.comp_get_class(comp)
 	
 	var name_list: PackedStringArray
 	if item.get_parent():

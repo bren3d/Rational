@@ -96,14 +96,11 @@ func root_get_item(root: RationalComponent) -> TreeItem:
 
 func close_item(item: TreeItem) -> void:
 	if not item: return
-	
-	var data: RootData = item_get_data(item)
-	
-	if data.unsaved_changes:
-		# TODO
-		return
-	
 	item_get_data(item).closed.emit()
+
+func close_data(data: RootData) -> void:
+	if not data: return
+	data.closed.emit() 
 
 
 func add_data(data: RootData) -> void:
@@ -111,10 +108,9 @@ func add_data(data: RootData) -> void:
 	var item: TreeItem = create_item()
 	item.set_metadata(0, data)
 	update_item(item)
-	data.changed.connect(_on_data_changed.bind(item))
-	data.unsaved_changes_changed.connect(_on_data_changed.bind(item))
-	#data.edit.connect(select_data, CONNECT_APPEND_SOURCE_OBJECT)
-	data.closed.connect(_on_data_closed.bind(item))
+	data.changed.connect(_on_data_changed.bind(data))
+	data.unsaved_changes_changed.connect(_on_data_changed.bind(data))
+	data.closed.connect(_on_data_closed.bind(data))
 
 func add_root(root: RationalComponent, force_path: String = "") -> void:
 	if not root: return
@@ -125,38 +121,27 @@ func update_item(item: TreeItem) -> void:
 	if not item: return
 	var data: RootData = item_get_data(item)
 	item.set_text(0, data_get_name(data))
-	item.set_icon(0, data_get_icon(data))
+	item.set_icon(0, Util.comp_get_icon(data.root))
 	item.set_tooltip_text(0, data_get_tooltip(data))
 
 func data_get_name(data: RootData) -> String:
 	return data.name + (" (*)" if data.unsaved_changes else "") 
 
-func data_get_icon(data: RootData) -> Texture2D:
-	return cache.data_get_icon(data)
-
 func data_get_tooltip(data: RootData) -> String:
-	return "Type: %s\nPath: %s" % [data.class_of_root, data.path]
-
-func erase_item(item: TreeItem) -> void:
-	if not item: return
-	var data: RootData = item_get_data(item)
-	cache.erase_data(data)
-	
-	# TODO - UndoRedo
+	return "Type: %s\nPath: %s" % [Util.comp_get_class(data.root), data.path]
 
 func erase_data(data: RootData) -> void:
-	erase_item(data_get_item(data))
+	cache.erase_data(data)
+	data.closed.emit()
 
-func erase_path(path: String) -> void:
-	if not path: return
-	erase_item(path_get_item(path))
+func _on_data_closed(data: RootData) -> void:	
+	if not data: return
+	var item:= data_get_item(data)
+	if item:
+		item.free()
 
-func _on_data_closed(item: TreeItem) -> void:	
-	if not item: return
-	item.free()
-
-func _on_data_changed(item: TreeItem) -> void:
-	update_item(item)
+func _on_data_changed(data: RootData) -> void:
+	update_item(data_get_item(data))
 
 func filter_list(filter: String = "") -> void:
 	for item: TreeItem in get_root().get_children():
@@ -210,7 +195,6 @@ func set_cache(val: Cache) -> void:
 
 #region RightClickMenu
 
-
 func save_selected() -> void:
 	save_item(get_selected())
 
@@ -221,7 +205,7 @@ func close_selected() -> void:
 	close_item(get_selected())
 
 func close_unselected() -> void:
-	close_item(get_selected())
+	close_items_except([get_selected()])
 
 func close_below_selected() -> void:
 	if not get_selected(): return
@@ -280,7 +264,7 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if not is_visible_in_tree() or not event.is_pressed() or event.is_echo(): return
+	if not event.is_pressed() or event.is_echo() or not has_focus(): return
 	
 	for sc: Shortcut in shortcuts:
 		if sc.matches_event(event):
@@ -299,7 +283,6 @@ func show_in_file_system() -> void:
 	item_path = item_path.get_slice("::", 0)
 	if FileAccess.file_exists(item_path):
 		EditorInterface.select_file(item_path)
-		#print("Selected file '%s'" % item_path)
 
 func prompt_change_tree_path(item: TreeItem) -> void:
 	if not item: return
@@ -319,17 +302,21 @@ func close_items_except(items_staying: Array[TreeItem] = []) -> void:
 		if item in items_staying: continue
 		close_item(item)
 
-
-
 #endregion
 
 #region Drag&Drop
 
 func import_files(files: Array) -> void:
+	files = files.filter(func(f: Variant) -> bool: return f is String)
 	for file in files:
-		if not file is String: continue
-		if ResourceLoader.exists(file, "RationalComponent"):
+		if ResourceLoader.exists(file, "Resource") and ResourceLoader.load(file, "Resource") is RationalComponent:
 			cache.add_path(file)
+	
+	for file in files:
+		var item:= path_get_item(file)
+		if not item: continue
+		item.select(0)
+		break
 
 
 func move_item(to_position: Vector2, item: TreeItem) -> void:

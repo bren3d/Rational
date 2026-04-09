@@ -32,6 +32,8 @@ var updating_graph: bool = false
 var arranging_nodes: bool = false
 var restoring_state: bool = false
 
+var graph_update_queued: bool = false
+
 var horizontal_layout: bool = false:
 	set(value):
 		if updating_graph or arranging_nodes or restoring_state:
@@ -498,6 +500,10 @@ func node_add_child(parent_name: StringName, child_name: StringName) -> void:
 
 
 func update_graph() -> void:
+	if active_root and not active_root.is_loaded():
+		active_root.loaded.connect(update_graph, CONNECT_ONE_SHOT)
+		return
+	
 	if updating_graph:
 		return
 	
@@ -505,20 +511,21 @@ func update_graph() -> void:
 	
 	clear()
 	
-	populate_tree()
+	if get_root_component():
 	
-	if can_restore_state():
-		restore_root_state()
-	else:
-		arrange_graph_nodes()
-	
-	queue_redraw.call_deferred()
+		populate_tree()
+		
+		if can_restore_state():
+			restore_root_state()
+		else:
+			arrange_graph_nodes()
+		
+		queue_redraw.call_deferred()
 	
 	updating_graph = false
 
 
 func populate_tree() -> void:
-	if not get_root_component(): return
 	add_node(get_root_component())
 	
 	for comp: RationalComponent in get_active_root_orphans():
@@ -538,7 +545,7 @@ func add_node(comp: RationalComponent) -> RationalGraphNode:
 	add_child(node)
 	
 	node.set_component(comp)
-	node.component_children_changed.connect(_on_component_children_changed, CONNECT_APPEND_SOURCE_OBJECT)
+	node.component_children_changed.connect(_on_component_children_changed, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_DEFERRED)
 	node.dragged.connect(_on_node_dragged, CONNECT_APPEND_SOURCE_OBJECT)
 	node.position_offset_changed.connect(_on_node_position_offset_changed, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_DEFERRED)
 	node.resized.connect(queue_redraw, CONNECT_DEFERRED)
@@ -588,7 +595,7 @@ func node_get_children(node: RationalGraphNode) -> Array[RationalGraphNode]:
 ## Only updates child connections.
 func update_node_connections(node: RationalGraphNode) -> void:
 	for child_node: RationalGraphNode in node_get_children(node):
-		if node.component.has_child(child_node.component): continue
+		if child_node and node.component.has_child(child_node.component): continue
 		disconnect_node(node.name, 0, child_node.name, 0)
 	
 	for child: RationalComponent in node.component.get_children():
@@ -732,10 +739,12 @@ func set_active_root(val: RootData) -> void:
 		if active_root:
 			active_root.closed.connect(close_active_root)
 		
+		
 		update_graph()
 
 
 func close_active_root() -> void:
+	graph_states.erase(active_root)
 	active_root = null
 
 

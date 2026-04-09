@@ -259,7 +259,7 @@ func _calculate_x(node: TreeNode, offset: int) -> void:
 	while sibling != null:
 		max_size = max(sibling.item.size.x, max_size)
 		sibling = sibling.get_next_sibling()
-
+	
 	for child in node.children:
 		_calculate_x(child, max_size + offset + LEVEL_DISTANCE * scale)
 

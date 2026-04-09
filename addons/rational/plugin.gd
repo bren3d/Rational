@@ -4,6 +4,8 @@ extends EditorPlugin
 const Util := preload("util.gd")
 const Cache := preload("data/cache.gd")
 
+const Settings := preload("settings.gd")
+
 const WindowWrapper := preload("editor/window_wrapper.gd")
 const Editor := preload("editor/main.gd")
 
@@ -25,6 +27,8 @@ func _enter_tree() -> void:
 	resource_saved.connect(_on_resource_saved)
 	scene_saved.connect(_on_scene_saved)
 	get_script_create_dialog().script_created.connect(_on_script_created)
+	
+	Settings.populate()
 	
 	name = &"Rational"
 	Engine.register_singleton(&"Rational", self)
@@ -52,7 +56,7 @@ func _exit_tree() -> void:
 	remove_inspector_plugin(inspector_plugin)
 	inspector_plugin = null
 	
-	cache.save()
+	#cache.save()
 	cache = null
 	
 	action_handle = null

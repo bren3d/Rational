@@ -14,7 +14,6 @@
 [ext_resource type="Script" uid="uid://davp5u2xw823n" path="res://addons/rational/components/rational_tree.gd" id="12_m8cgi"]
 [ext_resource type="Script" uid="uid://6ug5fa63l34w" path="res://addons/rational/components/blackboard.gd" id="13_6m14f"]
 [ext_resource type="Texture2D" uid="uid://c6xt30y0jeyie" path="res://TestScene/Debug.svg" id="14_4x1kh"]
-[ext_resource type="Script" uid="uid://lp2l3w30rxd3" path="res://addons/rational/components/decorators/failer.gd" id="14_f0c8p"]
 [ext_resource type="Script" uid="uid://bf5yfufeku4t4" path="res://addons/rational/components/rational_component.gd" id="14_s7iw1"]
 [ext_resource type="Script" uid="uid://b084a27qrwlfn" path="res://addons/rational/components/sequence.gd" id="16_f0c8p"]
 [ext_resource type="Script" uid="uid://bktdpfgt2g20l" path="res://addons/rational/components/condition.gd" id="17_8sece"]
@@ -77,17 +76,6 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="Resource" id="Resource_4t32f"]
-resource_name = "Failer"
-script = ExtResource("14_f0c8p")
-
-[sub_resource type="Resource" id="Resource_c3hlo"]
-resource_name = "Dumb"
-script = ExtResource("16_f0c8p")
-children = Array[ExtResource("14_s7iw1")]([SubResource("Resource_4t32f")])
-metadata/_custom_type_script = "uid://b084a27qrwlfn"
-metadata/_path_data = "Actor/RationalTree:root"
-
 [sub_resource type="Resource" id="Resource_8sece"]
 script = ExtResource("13_6m14f")
 metadata/_custom_type_script = "uid://6ug5fa63l34w"
@@ -134,8 +122,6 @@ autoplay = "success"
 
 [node name="RationalTree" type="Node" parent="Actor" unique_id=1609543142 node_paths=PackedStringArray("actor")]
 script = ExtResource("12_m8cgi")
-root = SubResource("Resource_c3hlo")
-root_id = "Resource_c3hlo"
 actor = NodePath("..")
 blackboard = SubResource("Resource_8sece")
 
@@ -161,6 +147,7 @@ blackboard = SubResource("Resource_1jrjd")
 [node name="Actor2Area2D" type="Area2D" parent="Actor2" unique_id=1026846961]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Actor2/Actor2Area2D" unique_id=228203990]
+visible = false
 shape = SubResource("CircleShape2D_b1mpv")
 
 [node name="Point" type="Marker2D" parent="." unique_id=1662812659]

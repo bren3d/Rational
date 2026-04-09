@@ -26,7 +26,7 @@ var cache: Cache
 var edited_tree: RootData:
 	get: return cache.edited_tree if cache else null
 
-var root_to_be_saved: RootData
+#var root_to_be_saved: RootData
 
 func _init() -> void:
 	file_dialog = EditorFileDialog.new()
@@ -35,7 +35,7 @@ func _init() -> void:
 	file_dialog.add_filter("*.res", "RationalComponent")
 	file_dialog.filters = PackedStringArray(["*.res,*.tres;Rational Files;resource/res,resource/tres"]) # ["*.res", "*.tres"]
 	add_child(file_dialog)
-	file_dialog.file_selected.connect(_on_file_selected)
+	
 	file_dialog.canceled.connect(_on_file_dialog_canceled, CONNECT_DEFERRED)
 
 
@@ -53,37 +53,38 @@ func _on_edited_tree_changed(data: RootData) -> void:
 
 func save_as(data: RootData) -> void:
 	if not data: return
-	file_dialog.current_file = ""
-	if data.path:
+	
+	file_dialog.current_file = data.name.to_snake_case() + ".tres"
+	
+	if not data.is_builtin() and data.path:
 		if DirAccess.dir_exists_absolute(data.path.get_base_dir()):
 			file_dialog.current_dir = data.path.get_base_dir()
-		file_dialog.current_file = data.path.get_file().get_slice(".", 0) + "_copy.tres"
-		data = data.duplicate(false)
+			file_dialog.current_file = data.path.get_file().get_slice(".", 0) + "_copy.tres"
 	
-	root_to_be_saved = data
-	if not file_dialog.current_file:
-		file_dialog.current_file = data.name.to_snake_case() + "_copy.tres"
+	file_dialog.file_selected.connect(_on_file_selected.bind(data), CONNECT_ONE_SHOT)
 	
 	file_dialog.popup_file_dialog()
 
-func _on_file_selected(path: String) -> void:
-	if not root_to_be_saved: return
-	if ResourceLoader.exists(path):
-		# TODO: Overwrite existing component.
+
+func _on_file_selected(path: String, data: RootData) -> void:
+	if not path:
+		print("No Path Selected: %s" % path)
 		return
 	
-	root_to_be_saved.path = path
-	var err:= root_to_be_saved.save(path)
+	if not data: return
 	
-	if err != OK:
-		printerr("Error saving component (%s) at path '%s'" % [root_to_be_saved, path])
-		return
-	
-	cache.add_data(root_to_be_saved)
+	match data.save_as(path):
+		OK:
+			cache.add_path(path)
+			print_rich("[color=green]Saved data at path '%s'." % path)
+		var err:
+			printerr("Could not save data at path '%s': %s" % [path, error_string(err)])
 
 
 func _on_file_dialog_canceled() -> void:
-	root_to_be_saved = null
+	if file_dialog.file_selected.is_connected(_on_file_selected):
+		file_dialog.file_selected.disconnect(_on_file_selected)
+
 
 func edit(rational_object: Object) -> void:
 	if rational_object is RationalTree:

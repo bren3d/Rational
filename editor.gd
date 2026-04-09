@@ -56,36 +56,32 @@ func _run() -> void:
 	#const FALLBACK = preload("uid://cincrbrw3hw1y")
 	const PATH := "res://TestScene/test_scene_character.tscn::Resource_4t32f"
 	const PATH2 := "res://TestScene/test_scene_character.tscn::Resource_q1v5c"
-	#var res = ResourceLoader.load("res://new_shader.tres", "RationalComponent")
-	#print(res)
-	class_data.update_class_data()
-	#for _class: StringName in class_data.class_data:
-		#var script = class_data.class_data[_class].get("script", "")
-		#class_data.class_data[_class].script = script.resource_path if script is Script else script
+	var SCENE_PATH:= "res://TestScene/test_scene_character.tscn"
+	#print(load("uid://dbllgp7c366kf").resource_name)
+	var cfg: ConfigFile = ConfigFile.new()
+	var err:= cfg.load(cache.get_save_path())
+	for data in cfg.get_value(cache.SECTION, cache.KEY_ROOT_DATA):
+		print(JSON.stringify(data, "\t"), "\n",)
+	#print(cfg.get_value(cache.SECTION, cache.KEY_ROOT_DATA).size())
+	#print(graph_edit.updating_graph)
+	#print(graph_edit.arranging_nodes)
+	#print(graph_edit.restoring_state)
 	
-	#var uid
-	#var uid:= ResourceUID.create_id_for_path(PATH)
-	#var uid2:= ResourceUID.create_id_for_path(PATH2)
-	#var id: int = 1834157330045161945
-	#var id_text: String = ResourceUID.id_to_text(id)
-	#
-	#var res = load(id_text)
-	#print(res)
+	#graph_edit.updating_graph = false
+	#graph_edit.arranging_nodes = false
+	#graph_edit.restoring_state = false
 	
-	#if not 
-	#ResourceUID.add_id(id, PATH)
-	
-	#print(ResourceUID.ensure_path())
-	#print("UID: %s" % id)
-	#print("UID TEXT: %s" % ResourceUID.id_to_text(id))
-	#print("HAS UID: %s" % ResourceUID.has_id(id))
-	#print("UID PATH: %s" % ResourceUID.get_id_path(id))
+	#var packed := load(SCENE_PATH)
+	#var body:= FileAccess.get_file_as_string(SCENE_PATH)
+	#print(error_string(FileAccess.get_open_error()))
+	#print(body)
+	#printt(cache.get_data_list())
+	#print(plugin.scene_closed.is_connected(cache._on_scene_closed))
 	
 	
-	#print("UID2: %s" % uid2)
-	#print("HAS UID: %s" % ResourceUID.has_id(uid))
-	#ResourceUID.set_id(uid, PATH)
-	#print("HAS UID: %s" % ResourceUID.has_id(uid))
+	#print("Exists: %s | Cached %s | Resource: %s" % [ResourceLoader.exists(PATH2), ResourceLoader.has_cached(PATH2), ResourceLoader.load(PATH2)])
+	#print()
+	#print(ResourceLoader.has_cached(PATH2))
 
 func get_all_components() -> Array[RationalComponent]:
 	var result: Array[RationalComponent]

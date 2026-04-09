@@ -1,6 +1,8 @@
 @tool
 class_name RootData extends RefCounted
 
+const TIMEOUT_MSEC: int = 5000
+
 ## Emitted when data changed.
 signal changed
 
@@ -14,26 +16,24 @@ signal unsaved_changes_changed
 
 signal data_saved
 
-var root: RationalComponent: set = set_root
+signal loaded
+
+var root: RationalComponent: set = set_root, get = get_root
+
 
 var path: String: set = set_path, get = get_path
 
-var uid: int = ResourceUID.INVALID_ID 
-
-## Path to node & property containing the root. Used with [method Node.get_node_and_resource].
-var node_path: String
-
 var name: String: set = set_name
-
-var class_of_root: StringName: set = set_class_of_root
 
 var unsaved_changes: bool = false: set = set_unsaved_changes, get = has_unsaved_changes
 
-
-func _init(_root: RationalComponent = null, _path: String = "", _node_path: String = "") -> void:
-	node_path = _node_path
+func _init(_path: String = "", _root: RationalComponent = null) -> void:
+	# Must set path before root. 
+	set_meta(&"_loading", true)
 	path = _path if _path or not _root else _root.resource_path
-	root = _root if _root else load_path(_path) 
+	root = _root
+	
+	Engine.get_main_loop().process_frame.connect(load_path, CONNECT_ONE_SHOT | CONNECT_DEFERRED)
 
 
 func is_root(_root: RationalComponent) -> bool:
@@ -61,6 +61,8 @@ func rename(to_name: String) -> void:
 	name = to_name
 	set_unsaved_changes(true)
 
+func get_root() -> RationalComponent:
+	return root
 
 func set_root(val: RationalComponent) -> void:
 		if root == val: return
@@ -70,188 +72,267 @@ func set_root(val: RationalComponent) -> void:
 			if obj is RationalComponent:
 				con.signal.disconnect(con.callable)
 		
+		root = val
+		set_block_signals(true)
+		
 		if val:
-			
-			root = val.duplicate(true)
+			root = val
 			root.changed.connect(_on_root_changed)
 			root.script_changed.connect(_on_root_script_changed)
 			root.tree_changed.connect(_on_tree_changed)
-		
-		else:
-			root = null
-		
-		set_block_signals(true)
-		class_of_root = get_root_class()
-		name = root.resource_name if root else ""
-		if not name and class_of_root:
-			name = class_of_root
+			name = root.resource_name
 		
 		set_block_signals(false)
 		changed.emit()
-
 
 func get_path() -> String:
 	return path
 
 func set_path(val: String) -> void:
-	if not val or path == val: return
+	if path == val: return
 	path = val
+	#if not get_meta(&"_loading", false):
+		#if root and root.resource_path != path:
+			#root.take_over_path(path)
 	changed.emit()
 
+func clear_path() -> void:
+	print("Clearing path for %s" % self)
+	if root:
+		root.resource_path = ""
+	else:
+		set_path("")
 
 func set_name(val: String) -> void:
 		if name == val: return
-		name = val
-		if root:
-			if not name:
-				name = get_root_class()
+		name = val if val else get_root_class()
+		if root and root.resource_name != name:
 			root.resource_name = name
-		var original_root := get_original_root()
-		if original_root:
-			original_root.resource_name = name
 		changed.emit()
-
-
-func set_class_of_root(val: String) -> void:
-		if class_of_root == val: return
-		class_of_root = val
-		changed.emit()
-
 
 func has_unsaved_changes() -> bool:
 	return unsaved_changes
 
+
+# NOTE: Child components are not updated immediately in inspector.
 func set_unsaved_changes(val: bool) -> void:
-		if unsaved_changes == val: return
-		unsaved_changes = val
-		var original_root: RationalComponent = get_original_root()
-		if original_root:
-			EditorInterface.set_object_edited(original_root, not val)
-		unsaved_changes_changed.emit()
+	if unsaved_changes == val: return
+	unsaved_changes = val
+	EditorInterface.set_object_edited(root, not val)
+	if unsaved_changes:
+		mark_scene_unsaved()
+	unsaved_changes_changed.emit()
 
-func copy_root_properties(from: RationalComponent, to: RationalComponent) -> void:
-	for property: Dictionary in from.get_property_list():
-		if property.name == &"resource_path": continue
-		to.set(property.name, from.get(property.name))
-
-
-func save(save_path: String = "") -> Error:
-	if not save_path:
-		save_path = path
-	
+func save_as(save_path: String) -> Error:
 	if not save_path:
 		return ERR_FILE_BAD_PATH
 	
-	var save_copy: RationalComponent = root.duplicate(true)
-	var err: Error = FAILED
+	if save_path == path:
+		return save()
 	
-	if save_path.contains("::"):
-		
-		var scene_path: String = path.get_slice("::", 0)
-		if not ResourceLoader.exists(scene_path, "PackedScene"):
-			printerr("RationalComponent '%s' scene path '%s' does not exist.")
-			return ERR_DOES_NOT_EXIST
-		
-		if scene_path in EditorInterface.get_open_scenes():
-			# Need to save before attempting to load Packed.
-			EditorInterface.open_scene_from_path(scene_path)
-			EditorInterface.save_scene()
-		
-		var packed: PackedScene = ResourceLoader.load(scene_path, "PackedScene")
-		var scene_node: Node = packed.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)
-		
-		# 0 - Node | 1 - Resource | 2 - Rest of path
-		var node_and_resource: Array = scene_node.get_node_and_resource(node_path)
-		
-		if not node_and_resource[0] or not node_and_resource[1] is RationalComponent:
-			printerr("No Node/Resource found at path '%s'." % node_path)
-			scene_node.queue_free()
-			return ERR_DOES_NOT_EXIST
-		
-		copy_root_properties(save_copy, node_and_resource[1])
-		
-		packed.pack(scene_node)
-		err = ResourceSaver.save(packed, scene_path)
-		scene_node.free()
-		EditorInterface.reload_scene_from_path(scene_path)
-		
+	var root_copy: RationalComponent = duplicate_root()
+	root_copy.take_over_path(save_path)
+	return ResourceSaver.save(root_copy, save_path, )
+
+
+func save() -> Error:
+	if not root:
+		return ERR_INVALID_DATA
 	
-	else:
-		if ResourceLoader.has_cached(save_path):
-			var cached_ref: RationalComponent = ResourceLoader.get_cached_ref(save_path)
-			copy_root_properties(save_copy, cached_ref)
-			err = ResourceSaver.save(cached_ref, save_path)
-		
+	var err: int = ERR_BUG
+	
+	if is_temp():
+		err = ERR_UNCONFIGURED
+	
+	elif is_builtin():
+		if not is_scene_open():
+			printerr("Built-in Resource %s is open while scene is closed." % self)
+		elif not ResourceLoader.exists(path, "Resource"):
+			err = ERR_FILE_BAD_PATH
+		elif ResourceLoader.load(path, "Resource") != root:
+			err = ERR_ALREADY_EXISTS
 		else:
-			err = ResourceSaver.save(save_copy, save_path, ResourceSaver.FLAG_CHANGE_PATH)
+			err = OK
+			
 	
-	if err == OK:
-		set_unsaved_changes(false)
-		data_saved.emit()
+	elif not is_save_path_valid(path):
+		err = ERR_FILE_BAD_PATH
+	
 	else:
-		print("Error saving %s => %s" %[self, error_string(err)])
+		if root.resource_path != path:
+			root.take_over_path(path)
+		err = ResourceSaver.save(root, path)
+	
+	match err:
+		OK:
+			set_unsaved_changes(false)
+			data_saved.emit()
+			print("Saved: %s" % self)
+		ERR_BUG:
+			printerr("BUGGED => RootData did not return true for any of is_temp, is_external, is_builtin.")
+		ERR_ALREADY_EXISTS:
+			printerr("Error saving %s => %s. \nDESYNC: Resource loaded from path is different from RootData." %[self, error_string(err)])
+		ERR_UNCONFIGURED, ERR_FILE_BAD_PATH, _:
+			printerr("Error saving %s => %s" %[self, error_string(err)])
 	
 	return err
 
 
+## Returns [code]true[/code] if [param save_path] is valid to save to.
+func is_save_path_valid(save_path: String) -> bool:
+	return path.get_file().is_valid_filename() and DirAccess.dir_exists_absolute(path.get_base_dir())
+
+## Clears/Modifies path/root if needed. Call after filesystem is loaded.
+func validate_path() -> void:
+	if is_temp():
+		return
+	
+	if ResourceLoader.exists(path, "Resource"):
+		if not root or root.resource_path != path:
+			root = ResourceLoader.load(path)
+		return
+	
+	if is_builtin():
+		var scene_file: String = get_scene_file()
+		if not is_scene_subresource():
+			printerr("Invalid scene '%s' for RootData '%s'" % [scene_file, name])
+			clear_path()
+		
+		return
+	
+	if root and is_save_path_valid(path):
+		root.take_over_path(path)
+		ResourceSaver.save(root, path)
+		#root = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE)
+		return
+	
+	printerr("Invalid RootData path: %s. Clearing..." % path)
+	clear_path()
+
+
+func serialize() -> Dictionary:
+	return {
+		path = path,
+		root = root.duplicate_deep(Resource.DEEP_DUPLICATE_INTERNAL),
+		}
+
+static func deserialize(data: Dictionary) -> RootData:
+	var data_path: String = data.get("path", "") if data.get("path", "") is String else ""
+	var data_root: RationalComponent = data.get("root", null) if data.get("root", null) is RationalComponent else null
+	return RootData.new(data_path, data_root)
+
+func load_path() -> void:
+	validate_path()
+	
+	if not get_path() or (root and get_path() == root.resource_path):
+		set_meta(&"_loading", null)
+		loaded.emit()
+		return
+	
+	var err:= await load_deferred()
+	
+	match err:
+		OK:
+			print_rich("[color=green]Loaded %s successfully.[/color]" % self)
+		
+		ERR_FILE_UNRECOGNIZED:
+			printerr("Resource at path '%s' does not extend RationalComponent. Caching %s without path." % [path, self])
+			clear_path()
+		
+		ERR_TIMEOUT:
+			if is_builtin() and not is_scene_open():
+				push_warning("Timeout trying to load '%s'. Closing..." % self)
+				closed.emit()
+			else:
+				push_warning("Timeout trying to load '%s'. Closing..." % self)
+				clear_path()
+		_:
+			printerr("Unknown error loading path '%s' => %s" % [path, error_string(err)])
+			clear_path()
+	
+	set_meta(&"_loading", null)
+	loaded.emit()
+
+
+func load_deferred() -> Error:
+	var start_tick: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start_tick < TIMEOUT_MSEC:
+		if ResourceLoader.exists(path):
+			
+			var res: Resource = ResourceLoader.load(path, "Resource", ResourceLoader.CACHE_MODE_REPLACE)
+			if not res is RationalComponent:
+				printerr("Resource at path '%s' is not type 'RationalComponent'." % path)
+				return ERR_FILE_UNRECOGNIZED
+			
+			set_root(res)
+			return OK
+		
+		await Engine.get_main_loop().process_frame
+	
+	return ERR_TIMEOUT
+
+
+func mark_scene_unsaved() -> void:
+	if not is_builtin(): return
+	var scene_file:= get_scene_file()
+	assert(is_scene_open(), "Built-in %s active while scene is not." % self)
+	
+	var current_scene: String = EditorInterface.get_edited_scene_root().scene_file_path
+	
+	EditorInterface.open_scene_from_path(scene_file)
+	EditorInterface.mark_scene_as_unsaved()
+	EditorInterface.open_scene_from_path.call_deferred(current_scene)
+
+
 func _on_root_changed() -> void:
-	if not root: return
 	name = root.resource_name
 	path = root.resource_path
 
 func _on_root_script_changed() -> void:
-	class_of_root = get_root_class()
+	set_unsaved_changes(true)
+	changed.emit()
 
 func _on_tree_changed() -> void:
 	set_unsaved_changes(true)
 	tree_changed.emit()
 
-func serialize() -> Dictionary:
-	return {
-		name = name,
-		path = path,
-		node_path = node_path,
-		root = root,
-		}
+func is_loaded() -> bool:
+	return not get_meta(&"_loading", false)
 
-func get_original_root() -> RationalComponent:
-	return RootData.load_path(get_path(), true)
 
-static func deserialize(data: Dictionary) -> RootData:
-	var data_root: RationalComponent = load_path(data.get("path", ""))
-	return RootData.new(data_root if data_root else data.get("root"), data.get("path", ""), data.get("node_path", ""))
+## Returns [code]true[/code] if root is saved to file.
+func is_external() -> bool:
+	return FileAccess.file_exists(get_path())
 
-static func load_path(path: String, show_errors: bool = true) -> RationalComponent:
-	if not path: return null
-	
-	if ResourceLoader.exists(path):
-		return ResourceLoader.load(path, "RationalComponent")
-	
-	if not path.containsn("::"):
-		if show_errors:
-			printerr("Unable to load component at path %s." % path)
-		return null
-	
-	var scene_path: String = path.get_slice("::", 0)
-	
-	if not ResourceLoader.exists(scene_path, "PackedScene"):
-		if show_errors:
-			printerr("Broken scene path for RationalComponent at '%s'." % path)
-		return null
-	
-	# Iterating over the entire scene state was faster than instancing the scene node for a scene of this size. May need to test more on larger scenes.
-	var state: SceneState = ResourceLoader.load(scene_path, "PackedScene").get_state()
-	for i: int in state.get_node_count():
-		for j: int in state.get_node_property_count(i):
-			if state.get_node_property_value(i, j) is RationalComponent:
-				var root: RationalComponent = state.get_node_property_value(i, j)
-				if root.resource_path == path:
-					return root
-	
-	return null
+## Returns [code]true[/code] if root is subresource of a PackedScene.
+func is_builtin() -> bool:
+	return get_path().contains("::")
 
-func duplicate(deep: bool = false) -> RootData:
-	return RootData.new(root.duplicate(deep))
+## Returns [code]true[/code] if root has no path and is only saved in cache.
+func is_temp() -> bool:
+	return not get_path()
+
+func get_scene_file() -> String:
+	return get_path().get_slice("::", 0)
+
+func get_scene_id() -> String:
+	return get_path().get_slice("::", 1)
+
+func is_scene_open() -> bool:
+	assert(is_builtin(), "Cannot check scene for non-built-in Resource %s" % self)
+	return get_scene_file() in EditorInterface.get_open_scenes()
+
+## Returns [code]true[/code] if Resource ID is found in scene file text.
+func is_scene_subresource() -> bool:
+	if not is_builtin():
+		return false
+	var scene_file:= get_scene_file()
+	if not FileAccess.file_exists(scene_file):
+		return false
+	return FileAccess.get_file_as_string(scene_file).contains(get_scene_id())
+
+func duplicate_root(deep_subresources_mode: Resource.DeepDuplicateMode = Resource.DEEP_DUPLICATE_INTERNAL) -> RationalComponent:
+	return root.duplicate_deep(deep_subresources_mode) if root else null
 
 func _to_string() -> String:
 	return "RootData: %s | Path %s" % [root, path]

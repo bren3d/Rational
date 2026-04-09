@@ -2,28 +2,19 @@
 extends RefCounted
 ## Manages [RationalComponent] roots and stores editor data.
 
-
 const Util := preload("../util.gd")
-
 const ClassData := preload("rational_class_data.gd")
 
 const FILENAME: String = "cache.cfg"
-const FILENAME_PATHS: String = "paths.txt"
-const FILENAME_BACKUP: String = "backup.cfg"
 
 const SECTION: String = "root_data_list"
 const KEY_ROOT_DATA: String = "roots"
-
-const META_PATH_DATA: StringName = &"_path_data"
 
 signal data_added(data: RootData)
 signal data_erased(data: RootData)
 
 signal data_saved(data: RootData)
 signal data_closed(data: RootData)
-
-## Emitted when the current resource needs to be fetched again to apply updates to.
-signal root_reloaded(root_data: RootData)
 
 ## Emited when [param root] needs to be saved via file dialog.
 signal request_save_as(data: RationalComponent)
@@ -62,7 +53,7 @@ func edit_tree(tree_data: RootData) -> void:
 
 func edit_root(root: RationalComponent) -> void:
 	if not has_root(root):
-		add_root(root, "", root.get_meta(&"_path_data", "") if root.get_meta(&"_path_data", "") is String else "")
+		add_root(root, "")
 	
 	edit_tree(root_get_data(root))
 
@@ -73,8 +64,13 @@ func edit_rational_tree(tree: RationalTree) -> void:
 func _init() -> void:
 	EditorInterface.get_file_system_dock().files_moved.connect(_on_file_moved)
 	EditorInterface.get_file_system_dock().resource_removed.connect(_on_resource_removed)
+	Util.get_plugin().scene_closed.connect(_on_scene_closed, CONNECT_DEFERRED)
 	class_data = ClassData.new()
 
+func _on_scene_closed(filepath: String) -> void:
+	for rd: RootData in get_data_list():
+		if not rd.get_path().containsn(filepath): continue
+		erase_data(rd)
 
 #region Paths/Roots
 
@@ -111,29 +107,22 @@ func has_root_or_path(root: RationalComponent, path: String) -> bool:
 func add_data(root_data: RootData) -> void:
 	if not root_data or has_data(root_data): return
 	
-	if not root_data.root:
-		printerr("Unable to load root at path: %s" % root_data.path)
-		return
-	
-	var root_name_list: PackedStringArray
-	for data: RootData in get_data_list():
-		root_name_list.push_back(data.name)
-	
-	root_data.name = Util.generate_unique_name(root_data.name, root_name_list)
 	root_data_list.push_back(root_data)
+	
+	root_data.request_edit.connect(_on_data_request_edit, CONNECT_APPEND_SOURCE_OBJECT)
 	root_data.closed.connect(erase_data, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_DEFERRED)
 	
 	data_added.emit(root_data)
 
 
-func add_root(root: RationalComponent, path: String = "", node_path: String = "") -> void:
+func add_root(root: RationalComponent, path: String = "") -> void:
 	if not root or has_root_or_path(root, path): return
-	add_data(RootData.new(root, path if path else root.resource_path, node_path))
+	add_data(RootData.new(path if path else root.resource_path, root))
 
 
 func add_path(path: String) -> void:
 	if not path or has_path(path): return
-	add_data(load_root_data(path))
+	add_data(RootData.new(path))
 
 
 func erase_data(data: RootData) -> void:
@@ -143,14 +132,14 @@ func erase_data(data: RootData) -> void:
 	if edited_tree == data:
 		set_edited_tree(null)
 	
+	if data.has_unsaved_changes() and data.is_external():
+		data.save()
+	
 	data_erased.emit(data)
 
 func erase_path(path: String) -> void:
 	if not has_path(path): return
 	erase_data(path_get_data(path))
-
-func is_valid_path(path: String) -> bool:
-	return path and ResourceLoader.exists(path, "RationalComponent")
 
 func get_data_list() -> Array[RootData]:
 	return root_data_list
@@ -164,50 +153,48 @@ func _on_file_moved(from: String, to: String) -> void:
 
 #endregion Paths/Roots
 
-
 func _on_resource_removed(res: Resource) -> void:
-	if res is RationalComponent:
-		erase_data(get_data(res))
+	if res is RationalComponent and has_root(res):
+		get_data(res).clear_path()
 
 func _on_data_request_edit(data: RootData) -> void:
 	edit_tree(data)
 
+
 #region Save/Load
-
-
-func get_unsaved_status(scene_path: String) -> String:
-	var names: PackedStringArray
-	for rd: RootData in get_data_list():
-		if not scene_path and rd.has_unsaved_changes():
-			return "Save changes made to Rational trees before closing?"
-		if rd.has_unsaved_changes() and rd.path.contains(scene_path) and ResourceLoader.exists(rd.path):
-			names.push_back(rd.name)
-	if not names.is_empty():
-		return "The following Rational roots in scene '%s' are unsaved:\n\n \t• %s" % [scene_path, "\n \t• ".join(names)]
-	return ""
 
 func get_save_path(file: String = FILENAME) -> String:
 	return get_script().resource_path.get_base_dir().path_join(file)
 
+func get_unsaved_status(scene_path: String) -> String:
+	var autosave: bool = Util.get_setting("autosave", true)
+	
+	if not autosave:
+		return "ERROR BUG: Autosave set to false."
+	
+	for rd: RootData in get_data_list():
+		if not scene_path or rd.path.contains(scene_path): 
+			rd.save()
+	
+	if not scene_path:
+		save()
+	
+	
+	return ""
+
 
 func save() -> void:
 	var root_data: Array[Dictionary]
-	#var path_list: PackedStringArray
-	for rd: RootData in root_data_list:
-		#var err:= rd.save()
-		#if err == OK:
-			#path_list.push_back(rd.get_path())
-		
+	for rd: RootData in get_data_list():
+		if rd.is_temp(): continue
 		root_data.push_back(rd.serialize())
 	
-	#var fa:= FileAccess.open(get_save_path(FILENAME_PATHS), FileAccess.WRITE)
-	#fa.store_csv_line(path_list)
-	
 	var cfg: ConfigFile = ConfigFile.new()
-	
 	cfg.set_value(SECTION, KEY_ROOT_DATA, root_data)
 	var err:= cfg.save(get_save_path())
-	if err != OK:
+	if err == OK:
+		print_rich("[color=green]Cache saved %d roots.[/color]" % root_data.size())
+	else:
 		printerr("Rational cache save error: %s" % error_string(err))
 
 
@@ -229,62 +216,4 @@ func save_data_as(data: RootData) -> void:
 	if not data: return
 	request_save_as.emit(data)
 
-
-func load_root_data(path: String) -> RootData:
-	if not path:
-		return null
-	var data: RootData = RootData.new(null, path)
-	
-	if not data.root:
-		Util.toast("Unable to load root at path '%s'" % path, EditorToaster.Severity.SEVERITY_ERROR)
-		return null
-	
-	return data
-
-func load_path(path: String) -> RationalComponent:
-	if not path: return null
-	
-	if ResourceLoader.exists(path):
-		return ResourceLoader.load(path, "RationalComponent")
-	
-	var resource_paths: PackedStringArray = path.split("::")
-	var scene_path: String = resource_paths[0]
-	
-	if not ResourceLoader.exists(scene_path, "PackedScene"):
-		printerr("Broken scene path for RationalComponent: %s" % path)
-		return null
-	
-	var state: SceneState = ResourceLoader.load(scene_path, "PackedScene").get_state()
-	for i: int in state.get_node_count():
-		for j: int in state.get_node_property_count(i):
-			if state.get_node_property_value(i, j) is RationalComponent:
-				var root: RationalComponent = state.get_node_property_value(i, j)
-				if root.resource_path == path:
-					return root
-	
-	return null
-
 #endregion Save/Load
-
-
-#region icon
-
-func class_extends_rational_component(_class: StringName) -> bool:
-	return class_data.class_extends_rational_component(_class)
-
-func has_icon(_class: StringName) -> bool:
-	return class_data.class_has_icon(_class)
-
-func comp_get_class(comp: Object) -> String:
-	return class_data.comp_get_class(comp)
-
-func comp_get_icon(comp: Object) -> Texture2D:
-	return class_data.comp_get_icon(comp)
-
-func data_get_icon(data: RootData) -> Texture2D:
-	return class_get_icon(data.class_of_root) if data else null
-
-func class_get_icon(_class: StringName) -> Texture2D:
-	return class_data.class_get_icon(_class)
-
-#endregion icon

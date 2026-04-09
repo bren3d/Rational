@@ -77,9 +77,9 @@ func _set(property: StringName, value: Variant) -> bool:
 
 func _validate_property(property: Dictionary) -> void:
 	match property.name:
-		&"resource_local_to_scene", &"resource_name":
+		&"resource_local_to_scene":
 			property.usage &= ~PROPERTY_USAGE_EDITOR
-		&"children":
+		&"children", &"resource_name":
 			property.usage |= PROPERTY_USAGE_READ_ONLY
 
 

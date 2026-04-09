@@ -1,6 +1,5 @@
 @tool
 
-
 static func get_plugin() -> EditorPlugin:
 	return Engine.get_singleton(&"Rational")
 
@@ -21,6 +20,8 @@ static func get_undo_redo() -> Object:
 
 static func toast(message: String, severity: EditorToaster.Severity = 0, tooltip: String = "") -> void:
 	EditorInterface.get_editor_toaster().push_toast(message, severity, tooltip)
+
+#region ClassData
 
 static func comp_get_icon(component: Object) -> Texture2D:
 	return get_class_data().comp_get_icon(component)
@@ -47,7 +48,17 @@ static func class_is_valid(_class: StringName) -> bool:
 static func script_path_is_valid(path: String) -> bool:
 	return get_class_data().script_path_is_valid(path)
 
-#static func create_comp
+#endregion ClassData
+
+#region Settings
+
+static func get_setting(name: String, default: Variant = null) -> Variant:
+	return get_plugin().Settings.get_setting(name, default)
+
+static func set_setting(name: String, value: Variant) -> void:
+	return get_plugin().Settings.set_setting(name, value)
+
+#endregion Settings
 
 #region Theme
 

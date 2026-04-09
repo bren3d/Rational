@@ -6,8 +6,6 @@ const Cache:= preload("../../data/cache.gd") # TBR
 
 var cache: Cache
 
-#var edit_tree_button_active: bool = false
-
 func _init() -> void:
 	cache = Util.get_cache()
 
@@ -18,7 +16,6 @@ func _can_handle(object: Object) -> bool:
 # TODO: Prevent creating buttons for components that are not a root.
 func _parse_begin(object: Object) -> void:
 	if object is RationalComponent:
-		#printt("BEGIN", object, EditorInterface.get_inspector().get_selected_path())
 		var button: Button = create_button()
 		button.pressed.connect(cache.edit_root.bind(object))
 
@@ -26,8 +23,7 @@ func _parse_property(object: Object, type: Variant.Type, name: String, hint_type
 	if object is RationalTree and name == "root":
 		var button: Button = create_button()
 		button.pressed.connect(_on_edit_pressed.bind(object, name))
-		if object is Node and not object.tree_entered.is_connected(update_node_path):
-			object.tree_entered.connect(update_node_path.bind(object, name))
+		
 		
 		var picker:= create_picker(object, name, "Composite")
 		
@@ -35,35 +31,20 @@ func _parse_property(object: Object, type: Variant.Type, name: String, hint_type
 	
 	return false
 
-func update_node_path(node: Node, property: String) -> void:
-	if not node.get(property): return
-	node.get(property).set_meta(Cache.META_PATH_DATA, "%s:%s" % [node.owner.get_path_to(node), property])
-	if cache.has_root(node.get(property)):
-		cache.root_get_data(node.get(property)).node_path = "%s:%s" % [node.owner.get_path_to(node), property]
-
 func _on_edit_pressed(object: Object, property: String = "") -> void:
-	update_node_path(object, property)
 	cache.edit_root(object.get(property))
 
 func _on_picker_changed(res: Resource, editor_property: EditorProperty) -> void:
-	# TODO - Update path ASAP
-	#if res and res.resource_path.contains("::") and not res.resource_path.containsn("Resource_"):
-		#res.resource_path = res.resource_path.insert(res.resource_path.rfind(":") + 1, "Resource_")
-		#EditorInterface.open_scene_from_path(res.resource_path.get_slice(":", 0))
-		#EditorInterface.save_scene.call_deferred()
-		
 	editor_property.emit_changed(editor_property.get_edited_property(), res)
-	update_node_path(editor_property.get_edited_object(), editor_property.get_edited_property())
+	if res:
+		cache.edit_root(res) 
+
 
 func _on_picker_selected(resource: Resource, inspect: bool, editor_property: EditorProperty) -> void:
 	var picker: EditorResourcePicker = editor_property.get_child(-1)
 	editor_property.select(- int(editor_property.is_selected()))
 	if inspect:
 		editor_property.resource_selected.emit("root", resource)
-	elif resource:
-		picker.set_meta(&"pressed", not picker.get_meta(&"pressed", false))
-		picker.set_toggle_pressed(picker.get_meta(&"pressed", false))
-		#editor_property.resource_selected.emit("root", resource)
 	
 	cache.edit_root(resource) 
 
@@ -71,9 +52,6 @@ func _on_editor_property_changed(property: StringName, value: Variant, field: St
 	picker.set_block_signals(true)
 	picker.set_edited_resource(value)
 	picker.set_block_signals(false)
-
-#func _on_selected(path: String, focusable_idx: int) -> void:
-	#printt(path, focusable_idx)
 
 #region GUI
 

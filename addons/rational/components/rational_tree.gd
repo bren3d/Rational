@@ -29,11 +29,6 @@ func _ready() -> void:
 	if not actor:
 		actor = get_parent()
 
-#
-#func _enter_tree() -> void:
-	#if root and Engine.is_editor_hint():
-		#root.set_meta(&"_path_data", "%s:%s" % [owner.get_path_to(self), "root"])
-
 
 func _process(delta: float) -> void:
 	if can_tick():
