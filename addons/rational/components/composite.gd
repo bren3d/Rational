@@ -63,7 +63,9 @@ func set_children(val: Array[RationalComponent]) -> void:
 	notify_tree_changed()
 
 func get_child(idx: int) -> RationalComponent:
-	assert(abs(idx) < children.size(), "Child index out of bounds.")
+	if not (-get_child_count() <= idx and idx < get_child_count()):
+		printerr("The calculated index %s is out of bounds (the array has %s elements). Leaving the array untouched." % [idx, get_child_count()]) 
+		return null
 	return children[idx]
 
 
@@ -77,12 +79,23 @@ func move_child(child: RationalComponent, to_index: int) -> void:
 	
 	if child_idx == to_index_clamped: return
 	
+	
 	children.remove_at(child_idx)
 	children.insert(to_index_clamped, child)
 	
 	children_changed.emit()
 	notify_tree_changed()
 
+func remove_index(idx: int) -> void:
+	if not (-get_child_count() <= idx and idx < get_child_count()):
+		printerr("The calculated index %s is out of bounds (the array has %s elements). Leaving the array untouched." % [idx, get_child_count()]) 
+		return
+	idx = wrapi(idx, 0, get_child_count())
+	var child: RationalComponent = children.pop_at(idx)
+	if child:
+		child.tree_changed.disconnect(notify_tree_changed)
+	children_changed.emit()
+	notify_tree_changed()
 
 func setup(actor: Node, board: Blackboard) -> void:
 	for child: RationalComponent in children:

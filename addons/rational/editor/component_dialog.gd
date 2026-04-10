@@ -180,6 +180,6 @@ func _on_theme_changed() -> void:
 	tree.add_theme_constant_override(&"icon_max_width", 16.0 * EditorInterface.get_editor_scale())
 
 func set_cache(cache: Object) -> void:
-	class_data = cache.class_data
+	class_data = Engine.get_singleton(&"Rational").class_data
 	refresh_tree()
 	class_data.class_data_updated.connect(refresh_tree)

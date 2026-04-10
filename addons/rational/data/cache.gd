@@ -29,6 +29,9 @@ var edited_tree: RootData: set = set_edited_tree, get = get_edited_tree
 func get_edited_tree() -> RootData:
 	return edited_tree
 
+func get_edited_comp() -> RationalComponent:
+	return edited_tree.root if edited_tree else null
+
 func set_edited_tree(val: RootData) -> void:
 	if edited_tree == val: return
 	
@@ -41,6 +44,7 @@ func set_edited_tree(val: RootData) -> void:
 	
 	if edited_tree:
 		edited_tree.request_edit.emit()
+
 
 
 func edit_tree(tree_data: RootData) -> void:
