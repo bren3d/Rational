@@ -21,9 +21,6 @@ var clipboard: Array[RationalComponent]: set = set_clipboard
 
 var current_edited_object: RootData: set = set_current_edited_object
 
-var cut_callbacks: Array[Callable]
-
-
 func _init() -> void:
 	init_action_handle.call_deferred()
 
@@ -34,11 +31,6 @@ func init_action_handle() -> void:
 	cache = Engine.get_singleton(&"Rational").cache
 	cache.edited_tree_changed.connect(set_current_edited_object)
 	set_current_edited_object(cache.edited_tree)
-
-
-func show_in_editor(comp: RationalComponent) -> void:
-	if not comp: return
-	request_show_in_editor.emit(comp)
 
 func open_documentation(comp: RationalComponent) -> void:
 	if not comp: return
@@ -124,6 +116,8 @@ func paste(parent: RationalComponent, merge_mode: UndoRedo.MergeMode = UndoRedo.
 func paste_as_sibling(parent: RationalComponent, sibling: RationalComponent, 
 			merge_mode: UndoRedo.MergeMode = UndoRedo.MERGE_ALL, execute: bool = true) -> void:
 	create_action("Paste Component(s) as sibling of %s" % sibling.get_name(), merge_mode, )
+	if not parent or not sibling: return
+	
 	for child: RationalComponent in get_top_clipboard_components().duplicate_deep(Resource.DEEP_DUPLICATE_INTERNAL):
 		if not parent.can_parent(child): continue
 		undo_redo.add_undo_method(parent, &"remove_child", child)
@@ -146,7 +140,8 @@ func change_script(path: String, comp: RationalComponent) -> void:
 	commit()
 
 func rename(comp: RationalComponent, to_name: String) -> void:
-	create_action("Rename Component", UndoRedo.MERGE_ALL, )
+	if comp.resource_name == to_name: return
+	create_action("Rename Component", UndoRedo.MERGE_DISABLE, )
 	undo_redo.add_do_property(comp, &"resource_name", to_name)
 	undo_redo.add_undo_property(comp, &"resource_name", comp.resource_name)
 	commit()
@@ -184,39 +179,35 @@ func duplicate() -> void:
 		var new_comp: RationalComponent = filter_unselected(comp, comp.duplicate_deep(Resource.DEEP_DUPLICATE_INTERNAL), selected)
 		create_action("Duplicate Component(s)")
 		undo_redo_add(new_comp, root.find_parent(comp))
+		
 		commit()
 
 ## Adds [member undo_redo] methods for adding a new component to the editor.
-func undo_redo_add(comp: RationalComponent, parent: RationalComponent = null) -> void:
+func undo_redo_add(comp: RationalComponent, parent: RationalComponent = null, ) -> void:
+	emit_add(comp)
+	
 	undo_redo.add_undo_method(selection, &"remove_component", comp)
 	
 	if parent:
 		undo_redo.add_undo_method(parent, &"remove_child", comp)
-	
-	emit_remove(comp)
-	
-	if parent:
 		undo_redo.add_do_method(parent, &"add_child", comp)
 	
-	undo_redo.add_do_method(self, &"emit_add", comp)
 	undo_redo.add_do_method(selection, &"add_component", comp)
+
 
 ## Adds [member undo_redo] methods for removing a component from the tree entirely.
 func undo_redo_remove(comp: RationalComponent, parent: RationalComponent = null) -> void:
-	if parent:
-		undo_redo.add_undo_method(parent, &"add_child", comp)
-		
-	undo_redo.add_undo_method(self, &"emit_add", comp)
+	emit_remove(comp)
 	
 	undo_redo.add_undo_method(selection, &"add_component", comp)
 	
+	if parent:
+		undo_redo.add_undo_method(parent, &"add_child", comp)
+	
 	undo_redo.add_do_method(selection, &"remove_component", comp)
-		
+	
 	if parent:
 		undo_redo.add_do_method(parent, &"remove_child", comp)
-	
-	emit_remove(comp)
-
 
 
 func get_edited_tree_root() -> RationalComponent:
@@ -310,6 +301,7 @@ func create_action(name: String, merge_mode: UndoRedo.MergeMode = UndoRedo.MERGE
 		current_edited_object.closed.connect(_on_closed, CONNECT_APPEND_SOURCE_OBJECT)
 	
 	undo_redo.create_action(name, merge_mode, null, backward_undo_ops, mark_unsaved)
+	
 	undo_redo.add_undo_method(self, &"swap_to_data", current_edited_object)
 	undo_redo.add_do_method(self, &"swap_to_data", current_edited_object)
 	

@@ -278,6 +278,8 @@ func mark_scene_unsaved() -> void:
 	EditorInterface.mark_scene_as_unsaved()
 	EditorInterface.open_scene_from_path.call_deferred(current_scene)
 
+func edit() -> void:
+	request_edit.emit()
 
 func _on_root_changed() -> void:
 	name = root.resource_name

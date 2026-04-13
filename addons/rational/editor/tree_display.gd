@@ -33,6 +33,7 @@ var block_selection_signal: bool = false
 var selection: Selection
 var action_handle: ActionHandle
 var undo_redo: EditorUndoRedoManager
+var deselect_queued: bool = false
 
 func _ready() -> void:
 	selection = Util.get_selection()
@@ -44,6 +45,7 @@ func _ready() -> void:
 	item_mouse_selected.connect(_on_item_mouse_selected)
 	multi_selected.connect(_on_multi_selected, CONNECT_DEFERRED)
 	button_clicked.connect(_on_button_clicked)
+	item_edited.connect(_on_item_edited)
 	
 	menu = Menu.new()
 	add_child(menu)
@@ -51,44 +53,24 @@ func _ready() -> void:
 	
 	tree_filter_line_edit.text_changed.connect(_on_filter_text_changed)
 
-# TBR
-func _unhandled_key_input(event: InputEvent) -> void:
-	if not event.is_pressed() or event.is_echo() or not event is InputEventKey: return
-	match event.keycode:
-		KEY_COMMA:
-			pass
-		KEY_PERIOD:
-			pass
-
-func _on_item_mouse_selected(mouse_position: Vector2, mouse_button_index: int) -> void:
-	#last_selected = get_item_at_position(mouse_position)
-	match mouse_button_index:
-		MOUSE_BUTTON_RIGHT:
-			show_popup(mouse_position)
-
-
 func show_popup(at_position: Vector2) -> void:
 	menu.popup_at(get_menu_options(), get_screen_position() + at_position)
-
 
 func get_item_at_popup() -> TreeItem:
 	return get_item_at_position(Vector2(menu.position) - get_screen_position())
 
-
 func show_in_editor() -> void:
-	action_handle.show_in_editor(item_get_comp(get_item_at_popup()))
+	graph_edit.select_and_center(item_get_comp(get_item_at_popup()))
 
 ## [param upward] dictates the direction of the move.
 func shift_selected(upward: bool) -> void:
 	var parent_items: Array[TreeItem]
-	for item: TreeItem in get_all_selected():
+	for item: TreeItem in get_all_selected_items():
 		if not item.get_parent() or item.get_parent() in parent_items: continue
 		parent_items.push_back(item)
 	
 	if parent_items.is_empty(): 
 		return
-	# Call to create history
-	action_handle.move_child(null, 0, 0, UndoRedo.MERGE_DISABLE, false)
 	
 	var idx_shift: int = (1 + -2 * int(upward))
 	
@@ -96,19 +78,16 @@ func shift_selected(upward: bool) -> void:
 		if parent.get_child((parent.get_child_count() - 1) * int(not upward)).is_selected(0):
 			continue
 		
-		var parent_comp: RationalComponent = item_get_comp(parent)
 		for i: int in parent.get_child_count():
 			var idx: int = i if upward else parent.get_child_count() - 1 - i
 			if parent.get_child(idx).is_selected(0):
-				action_handle.move_child(parent_comp, idx, idx + idx_shift, UndoRedo.MERGE_ALL, true)
-
+				action_handle.move_child(item_get_comp(parent), idx, idx + idx_shift, UndoRedo.MERGE_ALL, true)
 
 func move_up() -> void:
 	shift_selected(true)
 
 func move_down() -> void:
 	shift_selected(false)
-
 
 func paste_as_sibling() -> void:
 	if not get_selected() or not get_selected().get_parent(): return
@@ -120,14 +99,23 @@ func _on_menu_id_pressed(id: int) -> void:
 			action_handle.prompt_add_child(item_get_comp(get_selected()))
 		
 		Menu.ITEM_INSTANTIATE_NODE:
-			pass
+			action_handle.prompt_instantiate_child(item_get_comp(get_selected()))
 		
-		Menu.ITEM_MOVE_UP:	move_up()
+		Menu.ITEM_MOVE_UP:
+			move_up()
 		
-		Menu.ITEM_MOVE_DOWN:	move_down()
+		Menu.ITEM_MOVE_DOWN:
+			move_down()
 		
-		Menu.ITEM_RENAME:	rename()
-		Menu.ITEM_COPY:		action_handle.copy(selection.get_selected_components())
+		Menu.ITEM_RENAME:
+			rename()
+		
+		Menu.ITEM_COPY:
+			action_handle.copy()
+		
+		Menu.ITEM_DUPLICATE:
+			action_handle.duplicate()
+			get_selected()
 		
 		#Menu.ITEM_CUT, Menu.ITEM_COPY, Menu.ITEM_DUPLICATE, Menu.ITEM_PASTE, Menu.ITEM_CHANGE_TYPE, \
 				#Menu.ITEM_SAVE_AS_ROOT, Menu.ITEM_DOCUMENTATION, Menu.ITEM_DELETE:
@@ -177,17 +165,14 @@ func set_active_root(data: RootData) -> void:
 	active_root = data
 	
 	populate_tree()
+	
 	if active_root:
 		active_root.tree_changed.connect(_on_root_tree_changed)
 	
 	_on_selection_changed()
 
 func _on_root_tree_changed() -> void:
-	reload_tree()
-
-func reload_tree() -> void:
 	populate_tree()
-	
 
 func populate_tree() -> void:
 	clear()
@@ -210,7 +195,7 @@ func add_component(comp: RationalComponent, parent: TreeItem = null, recursive: 
 	item.set_icon(0, Util.comp_get_icon(comp))
 	item.add_button(0, get_visible_icon(true), -1, false, "Toggle Visibility")
 	item.set_meta(META_VISIBLE, true)
-	item.set_text(0, generate_unique_name(item))
+	item.set_text(0, comp.get_name())
 	item.set_tooltip_text(0, "%s\nType: %s" % [comp.resource_name, Util.comp_get_class(comp)])
 	
 	const SIGNAL_NAME: String = "changed"
@@ -268,7 +253,6 @@ func item_is_visible(item: TreeItem) -> bool:
 
 
 func item_set_visible(item: TreeItem, item_visible: bool) -> void:
-	#if item_is_visible(META_VISIBLE, true) == 
 	item.set_meta(META_VISIBLE, item_visible)
 	item.set_button(0, 0, get_visible_icon(item_visible))
 	
@@ -306,7 +290,7 @@ func set_cache(val: Cache) -> void:
 	cache = val
 	cache.edited_tree_changed.connect(edit_tree)
 
-func get_all_selected() -> Array[TreeItem]:
+func get_all_selected_items() -> Array[TreeItem]:
 	var selected_items: Array[TreeItem]
 	var item: TreeItem = get_root() if get_root().is_selected(0) else get_next_selected(get_root())
 	while item:
@@ -389,7 +373,7 @@ func _drop_data(at_position: Vector2, data: Variant) -> void:
 
 # { "type": "files", "files": ["res://BitMap.tres"], "from": @Tree@5673:<Tree#495833867875> }
 func _get_drag_data(at_position: Vector2) -> Variant:
-	var selected_items: Array[TreeItem] = get_all_selected()
+	var selected_items: Array[TreeItem] = get_all_selected_items()
 	
 	if selected_items.is_empty():
 		return null
@@ -407,11 +391,32 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 
 #endregion 
 
+
+func _on_item_mouse_selected(mouse_position: Vector2, mouse_button_index: int) -> void:
+	if mouse_button_index == MOUSE_BUTTON_RIGHT:
+		show_popup(mouse_position)
+
+func _on_item_edited() -> void:
+	action_handle.rename(item_get_comp(get_edited()), item_get_name(get_edited()))
+
 func _on_selection_changed() -> void:
 	set_selected_components(selection.get_selected_components())
 
 func _on_multi_selected(item: TreeItem, column: int, selected: bool) -> void:
+	if not deselect_queued:
+		deselect_queued = true
+		deselect_orphans.call_deferred()
+	
 	if selected:
 		selection.add_component(item_get_comp(item))
 		return
 	selection.remove_component(item_get_comp(item))
+
+func deselect_orphans() -> void:
+	if not deselect_queued: return
+	deselect_queued = false
+	var selected_item_components: Array[RationalComponent] = []
+	selected_item_components.map(item_get_comp)
+	for comp: RationalComponent in get_selected_components():
+		if not comp in selected_item_components:
+			selection.remove_component(comp)
