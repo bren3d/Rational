@@ -410,13 +410,14 @@ func _on_multi_selected(item: TreeItem, column: int, selected: bool) -> void:
 	if selected:
 		selection.add_component(item_get_comp(item))
 		return
+	
 	selection.remove_component(item_get_comp(item))
 
 func deselect_orphans() -> void:
 	if not deselect_queued: return
 	deselect_queued = false
-	var selected_item_components: Array[RationalComponent] = []
-	selected_item_components.map(item_get_comp)
+	var selected_item_components: Array[RationalComponent]
+	selected_item_components.assign(get_all_selected_items().map(item_get_comp))
 	for comp: RationalComponent in get_selected_components():
 		if not comp in selected_item_components:
 			selection.remove_component(comp)

@@ -56,12 +56,64 @@ func _run() -> void:
 	
 	const PATH := "res://TestScene/test_scene_character.tscn::Resource_4t32f"
 	const PATH2 := "res://TestScene/test_scene_character.tscn::Resource_q1v5c"
+	#const LEVEL_COUNTS: PackedInt32Array = [3, ]
+	
+	var root: TestNode = TestNode.new()
+	
+	var child_1: TestNode = TestNode.new()
+	for i in 3:
+		child_1.children.push_back(TestNode.new())
+		
+	var child_2: TestNode = TestNode.new()
+	for i in 2:
+		child_2.children.push_back(TestNode.new())
+	
+	root.children.push_back(child_1)
+	root.children.push_back(child_2)
+	
+	root.calculate_lateral()
+	root.print_tree_coords()
 	
 	
-	#print_selection()
-	#tree_display.selection = Util.get_selection()
-	#graph_edit.selection = Util.get_selection()
-	#tree_display.get_root().get_child(0).select(0)
+
+
+class TestNode extends RefCounted:
+	var index: int = 0
+	var size: int = 1
+	var level: int = 0
+	
+	var parent: TestNode
+	var children: Array[TestNode]
+	
+	func is_leftmost() -> bool:
+		return not parent or parent.children.front() == self
+	
+	func is_rightmost() -> bool:
+		return not parent or parent.children.back() == self
+	
+	func calculate_lateral(idx: int = 0, depth: int = 0) -> void:
+		index = idx
+		level = depth
+		var delta: int = 0
+		for i: int in children.size():
+			children[i].parent = self
+			children[i].calculate_lateral(idx + delta, depth + 1)
+			delta += children[i].size
+		size = maxi(delta, 1)
+	
+	func get_cell() -> float:
+		return float(index) + float(size)/2.0
+		
+	func print_tree_coords() -> void:
+		#var cell:= get_cell()
+		
+		print("Cell: %01.01f, %d" % [get_cell(), level])
+		for child in children:
+			child.print_tree_coords()
+	#
+	#func get_print_string() -> String:
+		
+	
 
 func print_selection() -> void:
 	var data: Dictionary = Engine.get_singleton(&"Rational").selection._data

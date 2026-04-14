@@ -157,12 +157,13 @@ func delete() -> void:
 func cut() -> void:
 	copy()
 	if not get_edited_tree_root() or get_selected_components().is_empty(): return
-	print("Cutting")
 	var root: RationalComponent = get_edited_tree_root()
-	for comp: RationalComponent in get_top_selected_filtered():
-		print("Cutting Comp: %s" % comp)
+	#print("Cutting | Root: %s" % root)
+	for comp: RationalComponent in get_selected_components():
+		var parent: RationalComponent = root.find_parent(comp)
+		print("Cutting Comp: %s | Parent: %s" % [comp, parent])
 		create_action("Cut Component(s)")
-		undo_redo_remove(comp, root.find_parent(comp))
+		undo_redo_remove(comp, parent)
 		commit()
 
 
@@ -339,6 +340,7 @@ func get_clipboard(top_components: bool = false) -> Array[RationalComponent]:
 	return filter_child_components(clipboard, Resource.DEEP_DUPLICATE_NONE) if top_components else clipboard
 
 func set_clipboard(value: Array[RationalComponent]) -> void:
+	clipboard.clear()
 	clipboard.assign(value)
 
 func get_undo_redo() -> Object:

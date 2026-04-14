@@ -52,8 +52,6 @@ var create_popup_start_position: Vector2
 
 var is_moving_node: bool = false
 
-var block_selection_signal: bool = false
-
 var is_restoring_state: bool = false
 
 var reset_dragged_nodes: bool = false
@@ -258,27 +256,14 @@ func add_child_component() -> void:
 func cut() -> void:
 	if is_dragging_connection: return
 	action_handle.cut()
-	
-	#remove_selected("Cut Component(s)")
 
 func delete() -> void:
 	if is_dragging_connection: return
 	action_handle.delete()
-	#remove_selected("Delete Component(s)")
-
-#func remove_selected(action_name: String = "Delete Component(s)") -> void:
-	#for comp: RationalComponent in selection.get_top_selected_components():
-		#action_handle.create_action(action_name)
-		#undo_redo_remove_comp(comp)
-		#for child: RationalComponent in comp.get_children(true):
-			#undo_redo_remove_comp_node(child)
-		#action_handle.commit(true)
-
 
 func copy() -> void:
 	if is_dragging_connection: return
 	action_handle.copy()
-
 
 func paste() -> void:
 	if is_dragging_connection or not action_handle.can_paste(): 
@@ -663,12 +648,13 @@ func update_node_connections(node: RationalGraphNode) -> void:
 			connect_node(node.name, 0, comp_get_node_name(child), 0)
 
 func parent_place_child(child: RationalGraphNode, parent: RationalGraphNode) -> void:
+	return
 	assert(child.component in parent.component.get_children())
 	var sibling_axis: int = int(horizontal_layout)
 	var level_axis: int = abs(sibling_axis - 1)
 	print("sibling_axis: %s | level_axis: %s" %[sibling_axis, level_axis])
 	
-	child.position_offset[level_axis] = parent.position_offset[level_axis] + parent.size[level_axis] + TreeNode.LEVEL_DISTANCE
+	child.position_offset[level_axis] = parent.position_offset[level_axis] + parent.size[level_axis] + TreeNode.LEVEL_SIZE
 
 	
 	if parent.component.get_child_count() <= 1:
@@ -681,9 +667,9 @@ func parent_place_child(child: RationalGraphNode, parent: RationalGraphNode) -> 
 	var children: Array[RationalGraphNode] = node_get_children_sorted(parent)
 	children.erase(child)
 	if idx == 0:
-		child.position_offset[sibling_axis] = children[0].position_offset[sibling_axis] - TreeNode.SIBLING_DISTANCE
+		child.position_offset[sibling_axis] = children[0].position_offset[sibling_axis] - TreeNode.LATERAL_SIZE
 	elif idx >= parent.component.get_child_count() - 1:
-		child.position_offset[sibling_axis] = children[-1].position_offset[sibling_axis] + children[-1].size[sibling_axis] + TreeNode.SIBLING_DISTANCE
+		child.position_offset[sibling_axis] = children[-1].position_offset[sibling_axis] + children[-1].size[sibling_axis] + TreeNode.LATERAL_SIZE
 	else:
 		child.position_offset[sibling_axis] = lerpf(children[idx-1].position_offset[sibling_axis] + children[idx-1].size[sibling_axis]
 				, children[idx+1].position_offset[sibling_axis], 0.5)
@@ -708,11 +694,13 @@ func arrange_graph_nodes() -> void:
 	propagate_call(&"set_horizontal", [horizontal_layout])
 	
 	var tree_node:= create_tree_node(get_root_component())
-	tree_node.update_positions(horizontal_layout)
+	tree_node.calculate_tree()
+	
+	#tree_node.update_positions(horizontal_layout)
 	place_nodes(tree_node)
 	
-	var offset: Vector2 = get_tree_end(tree_node) * Vector2(float(horizontal_layout), float(!horizontal_layout))
-	place_orphans(get_active_root_orphans(), offset)
+	#var offset: Vector2 = get_tree_end(tree_node) * Vector2(float(horizontal_layout), float(!horizontal_layout))
+	#place_orphans(get_active_root_orphans(), offset)
 	
 	arranging_nodes = false
 
@@ -725,7 +713,7 @@ func arrange_graph_nodes() -> void:
 
 
 func place_nodes(node: TreeNode) -> void:
-	node.item.position_offset = Vector2(node.x, node.y)
+	node.item.position_offset = node.get_position() # Vector2(node.x, node.y)
 	for child in node.children:
 		place_nodes(child)
 
@@ -1170,13 +1158,8 @@ func nodes_get_rect(nodes: Array[RationalGraphNode]) -> Rect2:
 func get_graph_rect() -> Rect2:
 	return nodes_get_rect(get_graph_nodes())
 
-func _on_tree_display_selected_items_changed(items: Array[RationalComponent]) -> void:
-	block_selection_signal = true
-	for node: RationalGraphNode in get_graph_nodes():
-		node.selected = node.component in items
-	block_selection_signal = false
-
 func node_get_port_positon(node: RationalGraphNode, output: bool) -> Vector2:
+	if not node: return Vector2.ZERO
 	return node.position + (node.get_output_position() if output else node.get_input_position()) * zoom
 
 

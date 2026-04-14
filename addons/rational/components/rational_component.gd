@@ -48,11 +48,13 @@ func move_child(child: RationalComponent, to_index: int) -> void:
 
 ## [param comp] must be ancestor of the node this is called on or will return [code]null[/code].
 func find_parent(comp: RationalComponent) -> RationalComponent:
-	var parent: RationalComponent
 	for child: RationalComponent in get_children():
-		parent = self if child == comp else child.find_parent(comp)
-		if parent: break
-	return parent
+		if child == comp:
+			return self
+		var parent: RationalComponent = child.find_parent(comp)
+		if parent:
+			return parent
+	return null
 
 func print_tree_pretty() -> void:
 	prints(get_tree_string_pretty("", true))

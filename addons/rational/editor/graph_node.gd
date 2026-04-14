@@ -288,6 +288,8 @@ func _on_component_changed() -> void:
 	update_display()
 
 func _on_component_script_changed() -> void:
+	if not is_inside_tree():
+		tree_entered.connect(_on_component_script_changed, CONNECT_ONE_SHOT)
 	set_slots(component != get_parent().get_root_component(), component is Composite)
 	update_display() 
 
