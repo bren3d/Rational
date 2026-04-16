@@ -3,12 +3,13 @@ extends GraphEdit
 
 const Util := preload("../util.gd")
 
-const EditorStyle = preload("editor_style.gd")
+#const EditorStyle = preload("editor_style.gd")
 const RationalGraphNode := preload("graph_node.gd")
 const CreatePopup = preload("component_dialog.gd") 
 const Menu := preload("popup_menu.gd")
 const ActionHandle := preload("action_handle.gd")
 const Selection:= preload("selection.gd")
+const TreePositionComponent := preload("tree_positioner.gd")
 
 const PROGRESS_SHIFT: int = 50
 const PORT_RANGE: float = 20
@@ -18,7 +19,6 @@ const DUPLICATE_OFFSET: Vector2 = Vector2(25.0, 25.0)
 @export var popup: CreatePopup
 @export var tree_display: Tree
 
-var style: EditorStyle
 var layout_button: Button
 
 var menu: Menu
@@ -66,10 +66,12 @@ var undo_redo: EditorUndoRedoManager
 ## Node selected with right click when creating a menu.
 var selected_node: RationalGraphNode
 
+var node_map: Dictionary[RationalComponent, RationalGraphNode]
+
 func _ready() -> void:
 	selection = Util.get_selection()
 	selection.selection_changed.connect(_on_selection_changed)
-	style = EditorStyle.new()
+	#style = EditorStyle.new()
 	
 	custom_minimum_size = Vector2(200, 200) * EditorInterface.get_editor_scale()
 	
@@ -79,6 +81,9 @@ func _ready() -> void:
 	update_layout_button()
 	get_menu_hbox().add_child(layout_button)
 	layout_button.pressed.connect(toggle_layout)
+	
+	child_entered_tree.connect(_on_child_entered_tree)
+	child_exiting_tree.connect(_on_child_exiting_tree)
 	
 	connection_drag_started.connect(_on_connection_drag_started)
 	connection_request.connect(_on_connection_request)
@@ -112,6 +117,21 @@ func _ready() -> void:
 	
 	init_shortcuts()
 
+func _on_child_entered_tree(node: Node) -> void:
+	if node is RationalGraphNode: 
+		node_map[node.component] = node
+		node.component_children_changed.connect(_on_component_children_changed, CONNECT_APPEND_SOURCE_OBJECT)
+		node.dragged.connect(_on_node_dragged, CONNECT_APPEND_SOURCE_OBJECT)
+		node.position_offset_changed.connect(_on_node_position_offset_changed, CONNECT_APPEND_SOURCE_OBJECT)
+		node.resized.connect(queue_redraw, CONNECT_DEFERRED)
+
+func _on_child_exiting_tree(node: Node) -> void:
+	if node is RationalGraphNode:
+		node.component_children_changed.disconnect(_on_component_children_changed)
+		node.dragged.disconnect(_on_node_dragged)
+		node.position_offset_changed.disconnect(_on_node_position_offset_changed)
+		node.resized.disconnect(queue_redraw)
+		node_map.erase(node.component)
 
 func _on_add_component(comp: RationalComponent) -> void:
 	var node:= undo_redo_add_comp_node(comp)
@@ -130,7 +150,6 @@ func _on_popup_request(at_position: Vector2) -> void:
 	
 	if disconnect_hovered_port():
 		return
-	
 	
 	selected_node = get_node_at_position(at_position)
 	
@@ -283,7 +302,7 @@ func paste_here() -> void:
 	if is_dragging_connection or not action_handle.can_paste(): 
 		return
 	
-	var orphan_offset: Vector2 = nodes_get_rect(get_graph_nodes()).end * get_layout_dir()
+	var orphan_offset: Vector2 = nodes_get_rect(get_graph_nodes()).end * Vector2.ONE * Vector2(float(horizontal_layout), float(!horizontal_layout))
 	var components: Array[RationalComponent] = action_handle.get_top_clipboard_components().duplicate_deep(Resource.DEEP_DUPLICATE_INTERNAL)
 	
 	var nodes: Array[RationalGraphNode]
@@ -383,7 +402,7 @@ func open_documentation() -> void:
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if not event.is_pressed() or event.is_echo() or not has_focus():
+	if is_dragging_connection or not event.is_pressed() or event.is_echo() or not has_focus():
 		return
 	
 	for sc: Shortcut in shortcuts:
@@ -435,8 +454,8 @@ func sort_position(node_a: RationalGraphNode, node_b: RationalGraphNode) -> bool
 	return node_a.position_offset.y < node_b.position_offset.y if horizontal_layout else node_a.position_offset.x < node_b.position_offset.x
 
 func show_quick_create_popup(at_position: Vector2) -> void:
-	if active_root:
-		popup.open(at_position, create_component.bind(at_position - global_position))
+	if not active_root: return
+	popup.open(at_position, create_component.bind(at_position - global_position))
 
 
 func create_component(_class: StringName, at_position: Vector2 = Vector2.ZERO) -> void:
@@ -558,36 +577,49 @@ func add_node(comp: RationalComponent, add_child_immediately: bool = true, recur
 	if not comp: return
 	
 	if comp_has_node(comp):
-		return comp_get_graph_node(comp)
+		var node:= comp_get_graph_node(comp)
+		node.selected = selection.is_selected(comp)
+		return node
 	
-	var node: RationalGraphNode = RationalGraphNode.new(style, horizontal_layout)
+	var node: RationalGraphNode = RationalGraphNode.new(horizontal_layout)
+	node.root = comp == get_root_component()
+	node.set_component(comp)
 	
 	if add_child_immediately:
 		add_child(node)
 	
-	node.set_component(comp)
-	node.component_children_changed.connect(_on_component_children_changed, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_DEFERRED)
+	node.component_children_changed.connect(_on_component_children_changed, CONNECT_APPEND_SOURCE_OBJECT)
 	node.dragged.connect(_on_node_dragged, CONNECT_APPEND_SOURCE_OBJECT)
-	node.position_offset_changed.connect(_on_node_position_offset_changed, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_DEFERRED)
+	node.position_offset_changed.connect(_on_node_position_offset_changed, CONNECT_APPEND_SOURCE_OBJECT)
 	node.resized.connect(queue_redraw, CONNECT_DEFERRED)
-	node.slot_sizes_changed
 	
-	node.set_slots(comp != get_root_component(), comp is Composite)
+	#node.slot_sizes_changed.connect(_on_slot_sizes_changed, CONNECT_APPEND_SOURCE_OBJECT)
+	#node.slot_updated.connect(_on_slot_updated, CONNECT_APPEND_SOURCE_OBJECT)
 	
-	if recursive:
+	node.selected = selection.is_selected(comp)
+	
+	if recursive and not node.is_inherited():
 		for child: RationalComponent in comp.get_children():
 			var child_node:= add_node(child)
+			child_node.parent = node
 			connect_node(node.name, 0, child_node.name, 0)
 	
 	return node
 
-
-
+func _on_component_property_edited(property: StringName, value: Variant, field: StringName, changing: bool, ep: EditorProperty) -> void:
+	pass
+	
+	#
+#func _on_slot_sizes_changed(node: RationalGraphNode) -> void:
+	#print("Slot size changed: %s" % node.title_text)
+#
+#func _on_slot_updated(slot: int, node: RationalGraphNode) -> void:
+	#print("Slot updated: %s (Slot #%d)" % [node.title_text, slot])
 
 func comp_get_parent(comp: RationalComponent) -> RationalComponent:
 	if not comp: return null
 	for graph_comp: RationalComponent in get_components():
-		if graph_comp and graph_comp.has_child(comp, false):
+		if graph_comp and graph_comp.has_child(comp):
 			return graph_comp
 	return null
 
@@ -605,9 +637,10 @@ func delete_node(node_name: String) -> void:
 			parent.remove_child(node.component)
 	
 	
-	
 	remove_child(node)
-	node.queue_free()
+	node.free()
+	#node.queue_free()
+	
 
 
 ## Adds a new/existing component.
@@ -639,48 +672,54 @@ func update_node_connections(node: RationalGraphNode) -> void:
 		if not child_node or node.component.has_child(child_node.component): continue
 		disconnect_node(node.name, 0, child_node.name, 0)
 	
+	var new_children: Array[GraphNode]
+	var arrange_node_children: bool = false
 	for child: RationalComponent in node.component.get_children():
-		if not comp_has_node(child):
-			var child_node:= add_node(child)
-			parent_place_child(child_node, node)
-			
+		var child_node: RationalGraphNode = comp_get_graph_node(child)
+		if not child_node:
+			child_node = add_node(child)
+			arrange_node_children = true
+		
 		if not is_node_connected(node.name, 0, comp_get_node_name(child), 0):
 			connect_node(node.name, 0, comp_get_node_name(child), 0)
+		
+		new_children.push_back(child)
+	
+	node.set_graph_children(new_children)
+	if arrange_node_children:
+		node.arrange()
 
 func parent_place_child(child: RationalGraphNode, parent: RationalGraphNode) -> void:
 	return
-	assert(child.component in parent.component.get_children())
-	var sibling_axis: int = int(horizontal_layout)
-	var level_axis: int = abs(sibling_axis - 1)
-	print("sibling_axis: %s | level_axis: %s" %[sibling_axis, level_axis])
+	#assert(child.component in parent.component.get_children())
+	#var sibling_axis: int = int(horizontal_layout)
+	#var level_axis: int = abs(sibling_axis - 1)
+	#print("sibling_axis: %s | level_axis: %s" %[sibling_axis, level_axis])
 	
-	child.position_offset[level_axis] = parent.position_offset[level_axis] + parent.size[level_axis] + TreeNode.LEVEL_SIZE
+	#child.position_offset[level_axis] = parent.position_offset[level_axis] + parent.size[level_axis] + TreePositionComponent.LEVEL_SIZE
+#
+	#
+	#if parent.component.get_child_count() <= 1:
+		#child.position_offset[sibling_axis] = parent.position_offset[sibling_axis] + (parent.size - child.size)[sibling_axis]/2.0
+		#print("Parent: %s | Child: %s" % [parent.get_rect(), child.get_rect()])
+		#return
+	#
+	#var idx: int = parent.component.get_child_index(child.component)
+	#assert(-1 < idx and idx < parent.component.get_child_count(), "OOB child index from 'get_child_index' function." )
+	#var children: Array[RationalGraphNode] = node_get_children_sorted(parent)
+	#children.erase(child)
+	#if idx == 0:
+		#child.position_offset[sibling_axis] = children[0].position_offset[sibling_axis] - TreePositionComponent.LATERAL_SIZE
+	#elif idx >= parent.component.get_child_count() - 1:
+		#child.position_offset[sibling_axis] = children[-1].position_offset[sibling_axis] + children[-1].size[sibling_axis] + TreePositionComponent.LATERAL_SIZE
+	#else:
+		#child.position_offset[sibling_axis] = lerpf(children[idx-1].position_offset[sibling_axis] + children[idx-1].size[sibling_axis]
+				#, children[idx+1].position_offset[sibling_axis], 0.5)
+	#
+	#print("Parent: %s | Child: %s" % [parent.get_rect(), child.get_rect()])
 
-	
-	if parent.component.get_child_count() <= 1:
-		child.position_offset[sibling_axis] = parent.position_offset[sibling_axis] + (parent.size - child.size)[sibling_axis]/2.0
-		print("Parent: %s | Child: %s" % [parent.get_rect(), child.get_rect()])
-		return
-	
-	var idx: int = parent.component.get_child_index(child.component)
-	assert(-1 < idx and idx < parent.component.get_child_count(), "OOB child index from 'get_child_index' function." )
-	var children: Array[RationalGraphNode] = node_get_children_sorted(parent)
-	children.erase(child)
-	if idx == 0:
-		child.position_offset[sibling_axis] = children[0].position_offset[sibling_axis] - TreeNode.LATERAL_SIZE
-	elif idx >= parent.component.get_child_count() - 1:
-		child.position_offset[sibling_axis] = children[-1].position_offset[sibling_axis] + children[-1].size[sibling_axis] + TreeNode.LATERAL_SIZE
-	else:
-		child.position_offset[sibling_axis] = lerpf(children[idx-1].position_offset[sibling_axis] + children[idx-1].size[sibling_axis]
-				, children[idx+1].position_offset[sibling_axis], 0.5)
-	
-	print("Parent: %s | Child: %s" % [parent.get_rect(), child.get_rect()])
-
-func get_layout_dir() -> Vector2:
-	return Vector2.ONE * Vector2(float(horizontal_layout), float(!horizontal_layout))
-
-func create_tree_node(comp: RationalComponent, parent: TreeNode = null) -> TreeNode:
-	var tree_node: TreeNode = TreeNode.new(comp_get_graph_node(comp), parent)
+func create_tree_node(comp: RationalComponent, parent: TreePositionComponent = null) -> TreePositionComponent:
+	var tree_node: TreePositionComponent = TreePositionComponent.new(comp_get_graph_node(comp), parent)
 	for child: RationalComponent in comp.get_children():
 		var child_tree_node := create_tree_node(child, tree_node)
 		tree_node.children.push_back(child_tree_node)
@@ -696,34 +735,23 @@ func arrange_graph_nodes() -> void:
 	var tree_node:= create_tree_node(get_root_component())
 	tree_node.calculate_tree()
 	
-	#tree_node.update_positions(horizontal_layout)
-	place_nodes(tree_node)
+	place_nodes.call_deferred(tree_node)
 	
-	#var offset: Vector2 = get_tree_end(tree_node) * Vector2(float(horizontal_layout), float(!horizontal_layout))
-	#place_orphans(get_active_root_orphans(), offset)
-	
-	arranging_nodes = false
+	set_deferred(&"arranging_nodes", false)
 
 
-#func arrange_subtree(subtree_root: RationalGraphNode) -> void:
-	#if arranging_nodes or not subtree_root: return
-	#arranging_nodes = true
-	#var tree_node:= create_tree_node(subtree_root.component)
-	#arranging_nodes = false
-
-
-func place_nodes(node: TreeNode) -> void:
-	node.item.position_offset = node.get_position() # Vector2(node.x, node.y)
-	for child in node.children:
+func place_nodes(node: TreePositionComponent) -> void:
+	node.item.position_offset = node.get_position()
+	for child: TreePositionComponent in node.children:
 		place_nodes(child)
 
-func get_tree_rect(node: TreeNode) -> Rect2:
+func get_tree_rect(node: TreePositionComponent) -> Rect2:
 	var rect: Rect2 = Rect2(node.item.position_offset, node.item.size)
 	for child in node.children:
 		rect = rect.merge(get_tree_rect(child))
 	return rect
 
-func get_tree_end(tree_node: TreeNode) -> float:
+func get_tree_end(tree_node: TreePositionComponent) -> float:
 	var result: float = tree_node.x + tree_node.item.layout_size
 	for child in tree_node.children:
 		result = maxf(result, get_tree_end(child))
@@ -732,7 +760,7 @@ func get_tree_end(tree_node: TreeNode) -> float:
 func comp_is_orphan(comp: RationalComponent) -> bool:
 	return get_root_component() and not (get_root_component() == comp or get_root_component().has_child(comp, true))
 
-func get_orphan_offset(tree_node: TreeNode) -> Vector2:
+func get_orphan_offset(tree_node: TreePositionComponent) -> Vector2:
 	return get_tree_rect(tree_node).end * Vector2(float(horizontal_layout), float(!horizontal_layout))
 
 func place_orphans(components: Array[RationalComponent], offset: Vector2 = Vector2.ZERO) -> void:
@@ -769,7 +797,7 @@ func clear() -> void:
 	clear_connections()
 	for child: RationalGraphNode in get_graph_nodes():
 		remove_child(child)
-		child.queue_free()
+		child.free()
 
 
 func set_active_root(val: RootData) -> void:
@@ -786,9 +814,6 @@ func set_active_root(val: RootData) -> void:
 			active_root.closed.connect(close_active_root)
 		
 		update_graph()
-
-func _on_root_data_closed(data: RootData) -> void:
-	pass
 
 func close_active_root() -> void:
 	graph_states.erase(active_root)
@@ -962,6 +987,9 @@ func _gui_input(event: InputEvent) -> void:
 						child.free()
 			KEY_B:
 					create_frame()
+			
+			KEY_P:
+				graph_states.clear()
 			
 
 func create_frame() -> GraphFrame:

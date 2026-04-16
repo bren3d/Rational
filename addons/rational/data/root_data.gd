@@ -332,5 +332,7 @@ func is_scene_subresource() -> bool:
 func duplicate_root(deep_subresources_mode: Resource.DeepDuplicateMode = Resource.DEEP_DUPLICATE_INTERNAL) -> RationalComponent:
 	return root.duplicate_deep(deep_subresources_mode) if root else null
 
+
+
 func _to_string() -> String:
 	return "RootData: %s | Path %s" % [root, path]

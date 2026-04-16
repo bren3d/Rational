@@ -12,7 +12,6 @@ class_name Composite extends RationalComponent
 func can_parent(child: RationalComponent) -> bool:
 	return not child or (child != self and not child.has_child(self, true))
 
-
 func add_child(child: RationalComponent, idx: int = -1) -> void:
 	if not child or not can_parent(child): return
 	
@@ -79,7 +78,6 @@ func move_child(child: RationalComponent, to_index: int) -> void:
 	
 	if child_idx == to_index_clamped: return
 	
-	
 	children.remove_at(child_idx)
 	children.insert(to_index_clamped, child)
 	
@@ -106,10 +104,7 @@ func get_children(recursive: bool = false) -> Array[RationalComponent]:
 	for child: RationalComponent in children:
 		if not child: continue
 		result.push_back(child)
-		
-	if recursive:
-		for child: RationalComponent in children:
-			if not child: continue
-			result += child.get_children(recursive)
-			
+		if recursive:
+			result.append_array(child.get_children(recursive))
+	
 	return result

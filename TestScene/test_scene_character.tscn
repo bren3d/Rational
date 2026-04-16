@@ -140,6 +140,7 @@ sprite_frames = SubResource("SpriteFrames_0cnec")
 animation = &"success"
 autoplay = "success"
 frame_progress = 0.563199
+speed_scale = 1.1
 
 [node name="RationalTree2" type="Node" parent="Actor2" unique_id=1425211417 node_paths=PackedStringArray("actor")]
 unique_name_in_owner = true

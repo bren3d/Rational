@@ -38,9 +38,14 @@ script = ExtResource("4_33d2x")
 resource_name = "Failer"
 script = ExtResource("3_2v6qb")
 
+[sub_resource type="Resource" id="Resource_cmxhe"]
+resource_name = "Inverter"
+script = ExtResource("5_j4u54")
+
 [sub_resource type="Resource" id="Resource_mp7jn"]
 resource_name = "Inverter"
 script = ExtResource("5_j4u54")
+children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_cmxhe")])
 
 [sub_resource type="Resource" id="Resource_galaw"]
 resource_name = "Succeeder"
@@ -55,6 +60,8 @@ children = Array[ExtResource("1_t6w2l")]([SubResource("Resource_5d4g7"), SubReso
 [sub_resource type="Resource" id="Resource_srx8v"]
 resource_name = "ConditionLeaf"
 script = ExtResource("5_utb02")
+condition = "Poopy
+"
 
 [sub_resource type="Resource" id="Resource_l1xnu"]
 resource_name = "Fallback"

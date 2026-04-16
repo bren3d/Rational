@@ -1,132 +1,222 @@
 @tool
 class_name TreeNode extends RefCounted
 
-const SIBLING_DISTANCE: float = 200.0
-const LEVEL_DISTANCE: float = 120.0
+const RationalGraphNode := preload("graph_node.gd")
+const TreePositionComponent := preload("tree_positioner.gd")
 
-const LATERAL_SIZE: float = 360.0
-const LEVEL_SIZE: float = 240.0
+#region Static
 
-var x: float
+static var _id_count: int = 0
 
-var mod: float = 0.0
+static func generate_id() -> int:
+	_id_count += 1
+	return _id_count
 
-var level: int = 0 # NOTE: To replace y
+static var _nodes: Dictionary[int, TreeNode]
+static var _comps: Dictionary[RationalComponent, TreeNode]
 
-var parent: TreeNode
+static func from_id(_id: int) -> TreeNode:
+	return _nodes.get(_id)
 
-var children: Array[TreeNode]
+static func from_comp(comp: RationalComponent) -> TreeNode:
+	return _comps.get(comp)
 
-var item: GraphNode
+static func comp_has_node(comp: RationalComponent) -> bool:
+	return TreeNode.from_comp(comp) != null
 
-func _init(_item: GraphNode = null, _parent: TreeNode = null) -> void:
+#endregion Static
+
+signal visibility_changed
+
+signal child_added
+signal child_removed
+
+
+
+var id: int = -1:
+	set(val):
+		if id == -1: 
+			id = val
+		
+
+var _block_update: bool = false
+var is_root: bool = false
+
+var visible: bool = true: get = is_visible, set = set_visible
+
+
+var component: RationalComponent: get = get_component, set = set_component
+
+var graph_node: GraphElement: get = get_node, set = set_node
+var positioner: TreePositionComponent = TreePositionComponent.new()
+
+var parent: TreeNode: get = get_parent, set = set_parent
+var children: Array[TreeNode]: get = get_children, set = set_children
+func get_node() -> RationalGraphNode:
+	return graph_node
+
+func set_node(val: GraphElement) -> void:
+	pass
+func _init(_component: RationalComponent = null, _parent: TreeNode = null, _is_root: bool = false) -> void:
+	id = generate_id()
+	TreeNode._nodes[id] = self
+	
+	
+	component = _component
 	parent = _parent
-	item = _item
-
-func has_children() -> bool:
-	return not children.is_empty()
-
-func is_front() -> bool:
-	return not parent or parent.children.front() == self
+	create_node(_is_root)
 
 func get_index() -> int:
-	return parent.children.find(self) if parent else 0
+	return parent.children.find(self) if parent else -1
 
-func get_previous() -> TreeNode:
-	return null if is_front() else parent.children[get_index() - 1]
+func get_child(index: int) -> TreeNode:
+	if -get_child_count() <= index and index < get_child_count():
+		return children[index]
+	printerr("child index '%d' is out of bounds (arr_size = %s)" % [index, get_child_count()])
+	return null
 
-func get_sibling(idx: int) -> TreeNode:
-	return parent.children[idx] if parent else self
+func can_parent(node: TreeNode) -> bool:
+	return node and component.can_parent(node.component)
 
-func get_cell_size() -> Vector2:
-	return Vector2(LEVEL_SIZE, LATERAL_SIZE) if is_horizontal() else Vector2(LATERAL_SIZE, LEVEL_SIZE)
-
-func is_horizontal() -> bool:
-	return item.horizontal if item else false
-
-func get_size() -> Vector2:
-	return item.size if item else Vector2()
-
-func calculate_tree(depth: int = 0) -> void:
-	init_node(depth)
-	init_lateral()
-	calculate_final_x(0.0)
-
-func init_node(depth: int) -> void:
-	x = 0
-	mod = 0
-	level = depth
-	for child: TreeNode in children:
-		child.init_node(depth + 1)
-
-func init_lateral() -> void:
-	for child: TreeNode in children:
-		child.init_lateral()
+func add_child(node: TreeNode, index: int = -1) -> void:
+	if not node:
+		printerr("Cannot add null node.")
+		return
 	
-	if is_front():
-		x = get_children_center()
+	if not can_parent(node):
+		printerr("%s cannot parent child %s." % [component, node])
+		return
 	
-	else:
-		x = get_previous().x + 1.0
-		mod = x - get_children_center()
-		if has_children():
-			check_conflicts()
-
-func get_children_center() -> float:
-	return (children[0].x + (children[-1].x - children[0].x) * 0.5) if has_children() else 0.0
-
-
-func find_left_bound(accum: float = 0.0, dict: Dictionary[int, float] = {}) -> Dictionary:
-	dict[level] = minf(dict.get(level, x + accum), x + accum)
-	accum += mod
-	for child: TreeNode in children:
-		child.find_left_bound(accum, dict)
-	return dict
-
-func find_right_bound(accum: float = 0.0, dict: Dictionary[int, float] = {}) -> Dictionary:
-	dict[level] = maxf(dict.get(level, x + accum), x + accum)
-	accum += mod
-	for child: TreeNode in children:
-		child.find_right_bound(accum, dict)
-	return dict
-
-func check_conflicts() -> void:
-	var shift: float = 0.0
-	var shifted_sibling_index: int = 0
-	var left_bound: Dictionary[int, float] = find_left_bound()
+	if node.parent == self: 
+		printerr("%s is already child to %s" % [node, self])
+		return
 	
-	for idx: int in get_index():
-		var right_bound:= get_sibling(idx).find_right_bound()
-		for sub_level: int in (mini(left_bound.keys().max(), right_bound.keys().max()) + 1 - level):
-			var lateral_delta: float = left_bound[level + sub_level] - right_bound[level + sub_level]
-			
-			if lateral_delta + shift < 1.0:
-				shift = 1.0 - lateral_delta
-				shifted_sibling_index = idx
+	if index < -get_child_count() or get_child_count() < index:
+		printerr("child index '%d' is out of bounds (arr_size = %s)" % [index, get_child_count()])
+		return
 	
-	if 0 < shift:
-		print("SHIFT: %s" % shift)
-		x += shift
-		mod += shift
-		center_siblings(shifted_sibling_index, get_index())
+	_block_update = true
+	component.add_child(node.component, index)
+	children.insert(index, node)
+	node.parent = self
+	_block_update = false
 
 
-func center_siblings(from: int, to: int) -> void:
-	if to - from < 1: return
-	var child_count: int = (to - from - 1)
-	var x_delta: float = (get_sibling(to).x - get_sibling(from).x) / float(child_count + 1)
-	for i: int in child_count:
-		var sibling:= get_sibling(to + i)
-		sibling.x += (x_delta * float(i + 1))
-		sibling.mod += (x_delta * float(i + 1))
+func remove_child(node: TreeNode) -> void:
+	if not node:
+		printerr("Cannot remove null node.")
+		return
+	
+	if not node in children:
+		printerr("Cannot remove node that is not childed.")
+		return
+	
+	assert(node.parent == self)
+	
+	_block_update = true
+	if component is Composite:
+		component.remove_child(node.component)
+	children.remove_at(children.find(node))
+	node.parent = null
+	_block_update = false
 
 
-func calculate_final_x(accum: float) -> void:
-	x += accum
-	accum += mod
-	for child: TreeNode in children:
-		child.calculate_final_x(accum)
+func get_children() -> Array[TreeNode]:
+	return children
 
-func get_position() -> Vector2:
-	var cell_size:= get_cell_size()
-	return cell_size * (Vector2(level, x) if is_horizontal() else Vector2(x, level)) + (cell_size - get_size()) / 2.0
+func get_child_count() -> int:
+	return children.size()
+
+func get_root() -> TreeNode:
+	var root: TreeNode = self
+	while root.get_parent():
+		root = root.get_parent()
+	return root
+
+func get_tree_id() -> int:
+	return get_root().id
+
+func is_comp(comp: RationalComponent) -> bool:
+	return comp == component
+
+func is_visible_in_tree() -> bool:
+	var node: TreeNode = self
+	while node:
+		if not node.visible:
+			return false
+		node = node.get_parent()
+	return true
+
+func is_visible() -> bool:
+	return visible
+
+func set_visible(val: bool) -> void:
+	if visible == val: return
+	visible = val
+	visibility_changed.emit()
+
+func set_children(val: Array[TreeNode]) -> void:
+	var ignore_idx: PackedInt64Array
+	for child in get_children():
+		if not child in val:
+			child.parent = null
+	
+	children = val.filter(is_instance_valid)
+	
+	for child in children:
+		child.parent = self
+
+
+func get_parent() -> TreeNode:
+	return parent
+
+func set_parent(val: TreeNode) -> void:
+	if parent == val: return
+	if parent:
+		parent.child_removed.emit(self)
+	
+	parent = val
+	
+	if parent:
+		parent.child_added.emit(self)
+		positioner.parent = parent.positioner if parent else null
+
+func get_component() -> RationalComponent:
+	return component
+
+func set_component(val: RationalComponent) -> void:
+	if not val: return
+	assert(not component, "Trying to change TreeNode component when one already exists.")
+	if not val.is_built_in() and comp_has_node(val):
+		printerr("RationalComponent %s already has TreeNode." % component)
+	
+	component = val
+	component.children_changed.connect(_on_children_changed)
+	update_children()
+
+func create_node(is_root: bool = false) -> void:
+	
+	graph_node = RationalGraphNode.new()
+	
+
+func update_children() -> void:
+	if _block_update or not component: return
+	
+	var childs: Array[RationalComponent] = component.get_children()
+	
+	var new_children: Array[TreeNode]
+	new_children.resize(childs.size())
+	
+	for i: int in childs.size():
+		new_children[i] = TreeNode.new(childs[i], self) if not TreeNode.comp_has_node(childs[i]) else TreeNode.from_comp(childs[i])
+
+func _on_children_changed() -> void:
+	update_children()
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_PREDELETE:
+			_comps.erase(component)
+			_nodes.erase(id)
+			if graph_node and not graph_node.is_queued_for_deletion():
+				graph_node.queue_free()

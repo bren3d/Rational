@@ -33,6 +33,8 @@ const TreeDisplay := preload("res://addons/rational/editor/tree_display.gd")
 const GraphEditor := preload("res://addons/rational/editor/graph_edit.gd")
 const Settings := preload("res://addons/rational/settings.gd")
 const ActionHandle := preload("res://addons/rational/editor/action_handle.gd")
+const RationalGraphNode = preload("uid://vsth43p1vl5f")
+const GraphState = preload("uid://bft33tkdb5bm1")
 
 func _run() -> void:
 	print("Running...")
@@ -56,63 +58,40 @@ func _run() -> void:
 	
 	const PATH := "res://TestScene/test_scene_character.tscn::Resource_4t32f"
 	const PATH2 := "res://TestScene/test_scene_character.tscn::Resource_q1v5c"
-	#const LEVEL_COUNTS: PackedInt32Array = [3, ]
+	const SAVE_PATH: String = "res://bar.tres"
 	
-	var root: TestNode = TestNode.new()
+	#GraphState.connections = graph_edit.get_connection_list()
 	
-	var child_1: TestNode = TestNode.new()
-	for i in 3:
-		child_1.children.push_back(TestNode.new())
-		
-	var child_2: TestNode = TestNode.new()
-	for i in 2:
-		child_2.children.push_back(TestNode.new())
-	
-	root.children.push_back(child_1)
-	root.children.push_back(child_2)
-	
-	root.calculate_lateral()
-	root.print_tree_coords()
-	
-	
-
-
-class TestNode extends RefCounted:
-	var index: int = 0
-	var size: int = 1
-	var level: int = 0
-	
-	var parent: TestNode
-	var children: Array[TestNode]
-	
-	func is_leftmost() -> bool:
-		return not parent or parent.children.front() == self
-	
-	func is_rightmost() -> bool:
-		return not parent or parent.children.back() == self
-	
-	func calculate_lateral(idx: int = 0, depth: int = 0) -> void:
-		index = idx
-		level = depth
-		var delta: int = 0
-		for i: int in children.size():
-			children[i].parent = self
-			children[i].calculate_lateral(idx + delta, depth + 1)
-			delta += children[i].size
-		size = maxi(delta, 1)
-	
-	func get_cell() -> float:
-		return float(index) + float(size)/2.0
-		
-	func print_tree_coords() -> void:
-		#var cell:= get_cell()
-		
-		print("Cell: %01.01f, %d" % [get_cell(), level])
-		for child in children:
-			child.print_tree_coords()
+	print("\n")
+	for dict: Dictionary in GraphState.connections:
+		var id: int = dict.to_node.to_int()
+		if is_instance_id_valid(id):
+			print(instance_from_id(id))
+	#print(GraphState.connections)
+	#GraphState.connections = graph_edit.connections
+	#var bar: Composite = load(PATH2)
+	#var id:= bar.get_instance_id()
+	#print(instance_from_id(id))
+	#print(bar.is_built_in())
+	#var is_cached: = ResourceLoader.has_cached(SAVE_PATH)
+	#print("Bar loaded: %s" % is_cached)
+	#if is_cached:
+		#return
 	#
-	#func get_print_string() -> String:
-		
+	#var bar: Sequence = load(SAVE_PATH)
+	#for sig in bar.get_signal_list():
+		#printt(sig.name)
+	#
+	#bar.add_user_signal("foo_changed")
+	##bar.set_meta(&"_visible", null)
+	#for sig in bar.get_signal_list():
+		#printt(sig.name)
+	#bar.set_meta(&"visible", true)
+	
+	#for meta: StringName in bar.get_meta_list():
+		#printt(meta, bar.get_meta(meta))
+	
+	#ResourceSaver.save(bar, SAVE_PATH)
 	
 
 func print_selection() -> void:

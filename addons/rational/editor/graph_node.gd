@@ -2,28 +2,24 @@
 extends GraphNode
 
 const Util := preload("../util.gd")
+const Style := preload("editor_style.gd")
+const ComponentEditor := preload("component_editor.gd")
+const TreePositionComponent := preload("tree_positioner.gd")
 
-#@export_tool_button("DFJ", "NewRoot")
+const INVALID_POSITION: Vector2 = Vector2(-999999, -999999)
 const PORT_RADIUS: float = 7.0
 const RADIUS_SIZE_INCREASE: float = 5.0
 
-enum {ITEM_RENAME, ITEM_CHANGE_TYPE, ITEM_SEP1, ITEM_MAKE_ROOT, ITEM_COPY, ITEM_DUPLICATE}
-
 signal component_children_changed
-signal request_selection
+signal component_property_edited(property: StringName, value: Variant, field: StringName, changing: bool)
 
 var component: RationalComponent: set = set_component
+
 
 @export var title_text: String:
 	set(value):
 		title_text = value
-		title_label.text = value
 		line_edit.text = value
-
-@export var text: String:
-	set(value):
-		text = value
-		label.text = " " if text.is_empty() else text
 
 @export var icon: Texture2D:
 	set(value):
@@ -36,13 +32,22 @@ var layout_size: float:
 
 
 var icon_rect: TextureRect
-var title_label: Label
 var line_edit: LineEdit
-var label: Label
 var titlebar_hbox: HBoxContainer
 
-var frames: RefCounted
+var hide_button: BaseButton
+
+var container: MarginContainer
+var editor: ComponentEditor
+
 var horizontal: bool = false : set = set_horizontal
+var arranged: bool = false
+
+var root: bool = false
+
+var positioner: TreePositionComponent = TreePositionComponent.new()
+var arranged_position: Vector2 = INVALID_POSITION
+
 var panels_tween: Tween
 
 var is_left_port_hovered: bool = false:
@@ -69,29 +74,27 @@ var current_index: int = 0:
 		current_index = val
 		queue_redraw()
 
-func _init(frames: RefCounted, horizontal: bool = false) -> void:
-	self.frames = frames
+var parent: GraphNode: set = set_graph_parent
+var children: Array[GraphNode]: set = set_graph_children
+
+func _init(horizontal: bool = false) -> void:
 	self.horizontal = horizontal
-	
+	positioner.item = self
 	custom_minimum_size = Vector2(50, 50) * EditorInterface.get_editor_scale()
 	
-	# For top port
-	#var top_port: Control = Control.new()
-	#add_child(top_port)
-
 	icon_rect = TextureRect.new()
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	icon_rect.custom_minimum_size = Vector2(16.0, 16.0) * EditorInterface.get_editor_scale()
 	icon_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	icon_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	
 	titlebar_hbox = get_titlebar_hbox()
 	titlebar_hbox.get_child(0).queue_free()
 	
-	title_label = Label.new()
-	title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_label.hide()
-	titlebar_hbox.add_child(title_label)
+	#hide_button = Button.new()
+	#hide_button.icon = Util.get_icon(&"GuiVisibilityVisible", &"EditorIcons")
+	#hide_button.icon = Util.get_icon(&"GuiVisibilityHidden", &"EditorIcons")
+	
 	
 	line_edit = LineEdit.new()
 	line_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -116,69 +119,91 @@ func _init(frames: RefCounted, horizontal: bool = false) -> void:
 	titlebar_hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
 	titlebar_hbox.add_child(icon_rect)
 	
-	label = Label.new()
-	label.text = " " if text.is_empty() else text
-	add_child(label)
+	editor = ComponentEditor.new()
+	container = MarginContainer.new()
+	container.custom_minimum_size = Vector2(32.0, 32.0) * EditorInterface.get_editor_scale()
+	container.theme_type_variation = &"MarginContainer4px"
+	container.add_theme_constant_override(&"bottom_margin", 12)
+	container.add_child(editor)
+	add_child(container)
+	
+	resized.connect(_on_resized)
+	position_offset_changed.connect(_on_position_offset_changed)
 
+func _on_resized() -> void:
+	if arranged:
+		arranged_position = positioner.get_position()
+		position_offset = arranged_position
+
+func _on_position_offset_changed() -> void:
+	arranged = arranged_position != INVALID_POSITION and position_offset == arranged_position
+
+func arrange() -> void:
+	arranged_position = positioner.get_position()
+	position_offset = arranged_position
+	arranged = true
+	for child in children:
+		child.arrange()
+
+func set_graph_parent(val: GraphNode) -> void:
+	parent = val
+	positioner.parent = parent.positioner if parent else null
+
+func set_graph_children(val: Array[GraphNode]) -> void:
+	for child in children:
+		if not child in val: continue
+		child.parent = null
+		
+	children = val
+	
+	var positioner_children: Array[RefCounted]
+	for child in children:
+		child.parent = self
+		positioner_children.push_back(child.positioner)
+	
+	positioner.children = positioner_children
+
+func _ready() -> void:
+	
+	add_theme_color_override("close_color", Color.TRANSPARENT)
+	add_theme_icon_override("close", ImageTexture.new())
+	
+	var title_font: Font = Util.get_font(&"main", &"EditorFonts").duplicate()
+	line_edit.add_theme_font_override("font", title_font)
+	
+	line_edit.text = title_text
+
+func is_inherited() -> bool:
+	return not root and component and not component.is_built_in()
 
 func get_component_class() -> StringName:
 	return component.get_script().get_global_name() if component else &""
 
-func prompt_change_type() -> void:
-	EditorInterface.popup_create_dialog(change_type, &"RationalComponent", "", 
-			"Change Component Type", [])
-
-func change_type(script_path: StringName) -> void:
-	print("CHANGE TYPE: %s" % script_path)
-	if not script_path: return
-	assert(component != null, "Cannot change type of null.")
-	assert(Util.script_path_is_valid(script_path), "Invalid script path: %s" % script_path)
-	var script: Script = ResourceLoader.load(script_path, "GDScript")
-	component.set_script(script)
-	
-	#if _class == get_component_class() or not Util.class_is_valid(_class): return
-	print("Type Changed...")
-
 func rename() -> void:
 	set_editable(true)
-	line_edit.edit()
-	line_edit.select_all()
 
 func set_editable(editable: bool) -> void:
+	editable = editable and not is_inherited()
 	line_edit.selecting_enabled = editable
 	line_edit.editable = editable
 	line_edit.mouse_filter = MOUSE_FILTER_IGNORE * int(not editable)
 	line_edit.focus_mode = Control.FOCUS_ALL * int(editable)
+	if editable:
+		line_edit.edit()
+		line_edit.select_all()
+
 
 
 func set_component_name(new_name: String) -> void:
 	if not component or component.resource_name == new_name: return
 	component.resource_name = new_name
 
+
 func _on_line_edit_editing_toggled(is_editing: bool) -> void:
-	print("LineEdit Toggled: %s" % is_editing)
-	if is_editing: return
+	if not is_visible_in_tree() or is_editing: return
 	set_editable(false)
 	set_component_name(line_edit.text)
 	reset_size()
-
-
-func _ready() -> void:
-	add_theme_color_override("close_color", Color.TRANSPARENT)
-	add_theme_icon_override("close", ImageTexture.new())
-	
-	title_label.add_theme_color_override("font_color", Color.WHITE)
-	var title_font: Font = Util.get_font(&"main", &"EditorFonts").duplicate()
-	title_label.add_theme_font_override("font", title_font)
-	line_edit.add_theme_font_override("font", title_font)
-	
-	line_edit.text = title_text
-	title_label.text = title_text
-	
-	minimum_size_changed.connect(_on_size_changed)
-	_on_size_changed.call_deferred()
-
-
 
 
 func _draw_port(slot_index: int, port_position: Vector2i, left: bool, color: Color) -> void:
@@ -213,46 +238,82 @@ func get_port_position(left: bool) -> Vector2:
 
 func set_status(status: int) -> void:
 	match status:
-		0: set_stylebox_overrides(frames.panel_success, frames.titlebar_success)
-		1: set_stylebox_overrides(frames.panel_failure, frames.titlebar_failure)
-		2: set_stylebox_overrides(frames.panel_running, frames.titlebar_running)
-		_: set_stylebox_overrides(frames.panel_normal, frames.titlebar_normal)
+		0: set_stylebox_overrides(Style.panel_success, Style.titlebar_success)
+		1: set_stylebox_overrides(Style.panel_failure, Style.titlebar_failure)
+		2: set_stylebox_overrides(Style.panel_running, Style.titlebar_running)
+		_: set_stylebox_overrides(Style.panel_normal, Style.titlebar_normal)
 
 
 ## Left == parent port. Right == children port.
 func set_slots(left_enabled: bool, right_enabled: bool) -> void:
-	set_slot(0, left_enabled, 0, Color.WHITE, right_enabled, 0, Color.WHITE)
+	if left_enabled != is_slot_enabled_left(0) or right_enabled != is_slot_enabled_right(0):
+		set_slot(0, left_enabled, 0, Color.WHITE, right_enabled, 0, Color.WHITE)
 
 
 func update_display() -> void:
 	title_text = component.resource_name if component else ""
 	icon = Util.comp_get_icon(component)
+	
 	name = str(component.get_instance_id())
+	icon_rect.tooltip_text = Util.comp_get_class(component) if component else ""
 
 
 func set_component(val: RationalComponent) -> void:
 	if component:
 		component.changed.disconnect(_on_component_changed)
 		component.script_changed.disconnect(_on_component_script_changed)
-		component.children_changed.disconnect(component_children_changed.emit)
+		component.children_changed.disconnect(_on_component_children_changed)
 	
 	component = val
-	
 	update_display()
+	set_slots(not root, component is Composite)
+	
+	editor.visible = not is_inherited()
+	editor.update_display(val if editor.visible else null)
+	resizable = editor.visible and editor.has_properties()
 	
 	if component:
 		component.changed.connect(_on_component_changed)
 		component.script_changed.connect(_on_component_script_changed, CONNECT_DEFERRED)
-		component.children_changed.connect(component_children_changed.emit)
+		component.children_changed.connect(_on_component_children_changed)
 
+func _on_component_changed() -> void:
+	update_display()
 
-func set_color(color: Color) -> void:
-	set_slot_color_left(0, color)
-	set_slot_color_right(0, color)
+func _on_component_children_changed() -> void:
+	component_children_changed.emit()
+
+func _on_component_script_changed() -> void:
+	if not is_inside_tree():
+		if not tree_entered.is_connected(_on_component_script_changed):
+			tree_entered.connect(_on_component_script_changed, CONNECT_ONE_SHOT)
+		return
+	set_slots(component != get_parent().get_root_component(), component is Composite)
+	update_display() 
+
+func _draw() -> void:
+	if is_drawing_index:
+		draw_index()
+
+func draw_index() -> void:
+	var font: Font = line_edit.get_theme_font(&"font")
+	var font_size: int = size.y / 1.3
+	var txt: String = str(current_index)
+	var text_size: Vector2 = font.get_string_size(txt, 0, -1, font_size)
+	var pos: Vector2 = Vector2((size.x - text_size.x) / 2.0, size.y - (size.y - text_size.y))
+	
+	draw_string_outline(font, pos, txt, 0, -1, font_size, 4)
+	draw_string(font, pos, txt, 0, -1, font_size)
+
+func _get_tooltip(at_position: Vector2) -> String:
+	return ("ID: %s" % component.get_instance_id()) if component else ""
+
+func set_horizontal(val: bool) -> void:
+	horizontal = val
 
 
 func set_stylebox_overrides(panel_stylebox: StyleBox, titlebar_stylebox: StyleBox) -> void:
-	if not has_theme_stylebox_override("panel") or panel_stylebox != frames.panel_normal:
+	if not has_theme_stylebox_override("panel") or panel_stylebox != Style.panel_normal:
 		if panels_tween:
 			panels_tween.kill()
 		
@@ -265,7 +326,7 @@ func set_stylebox_overrides(panel_stylebox: StyleBox, titlebar_stylebox: StyleBo
 	# Don't need to do anything if our colors are already the same as a normal
 	var cur_panel_stylebox: StyleBox = get_theme_stylebox("panel")
 	var cur_titlebar_stylebox: StyleBox = get_theme_stylebox("titlebar")
-	if cur_panel_stylebox.bg_color == frames.panel_normal.bg_color:
+	if cur_panel_stylebox.bg_color == Style.panel_normal.bg_color:
 		return
 	
 	# Apply a duplicate of our current panels that we can tween
@@ -280,36 +341,3 @@ func set_stylebox_overrides(panel_stylebox: StyleBox, titlebar_stylebox: StyleBo
 	panels_tween.tween_property(cur_panel_stylebox, "border_color", panel_stylebox.border_color, 1.0)
 	panels_tween.tween_property(cur_titlebar_stylebox, "bg_color", panel_stylebox.bg_color, 1.0)
 	panels_tween.tween_property(cur_titlebar_stylebox, "border_color", panel_stylebox.border_color, 1.0)
-
-func _on_size_changed():
-	add_theme_constant_override("port_offset", 12 * EditorInterface.get_editor_scale() if horizontal else roundi(size.x))
-
-func _on_component_changed() -> void:
-	update_display()
-
-func _on_component_script_changed() -> void:
-	if not is_inside_tree():
-		tree_entered.connect(_on_component_script_changed, CONNECT_ONE_SHOT)
-	set_slots(component != get_parent().get_root_component(), component is Composite)
-	update_display() 
-
-func _draw() -> void:
-	if not is_drawing_index: return
-	var font: Font = title_label.get_theme_font(&"font")
-	var font_size: int = size.y / 1.3
-	var txt: String = str(current_index)
-	var text_size: Vector2 = font.get_string_size(txt, 0, -1, font_size)
-	var pos: Vector2 = Vector2((size.x - text_size.x) / 2.0, size.y - (size.y - text_size.y))
-	
-	draw_string_outline(font, pos, txt, 0, -1, font_size, 4)
-	draw_string(font, pos, txt, 0, -1, font_size)
-
-func _get_tooltip(at_position: Vector2) -> String:
-	if not component: 
-		return ""
-	if icon_rect.get_rect().has_point(at_position - icon_rect.position):
-		return get_component_class()
-	return "ID: %s" % component.get_instance_id()
-
-func set_horizontal(val: bool) -> void:
-	horizontal = val

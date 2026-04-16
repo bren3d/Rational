@@ -3,6 +3,7 @@
 [sub_resource type="VisualShaderNodeUVFunc" id="VisualShaderNodeUVFunc_lsw1g"]
 
 [resource]
+resource_local_to_scene = true
 mode = 1
 flags/light_only = false
 nodes/vertex/2/node = SubResource("VisualShaderNodeUVFunc_lsw1g")

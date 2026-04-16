@@ -255,22 +255,23 @@ func item_is_visible(item: TreeItem) -> bool:
 func item_set_visible(item: TreeItem, item_visible: bool) -> void:
 	item.set_meta(META_VISIBLE, item_visible)
 	item.set_button(0, 0, get_visible_icon(item_visible))
-	
-	var parent_visible: bool = item_visible
-	var parent: TreeItem = item.get_parent()
-	while item_visible and parent:
-		item_visible = item_is_visible(parent)
-		parent = parent.get_parent()
-	
-	item_set_visible_modulate(item, parent_visible)
+	item_set_visible_modulate(item)
 
 
-func item_set_visible_modulate(item: TreeItem, parent_visible: bool) -> void:
-	var modulate_color: Color = COLOR_VISIBLE if parent_visible and item_is_visible(item) else COLOR_HIDDEN
-	item.set_button_color(0, 0, modulate_color)
+func item_set_visible_modulate(item: TreeItem) -> void:
+	var visible_in_tree: bool = item_visible_in_tree(item)
+	var button_color: Color = COLOR_VISIBLE if visible_in_tree else COLOR_HIDDEN
+	if button_color == item.get_button_color(0, 0): return
+	item.set_button_color(0, 0, button_color)
 	for child: TreeItem in item.get_children():
-		item_set_visible_modulate(child, parent_visible)
-	
+		item_set_visible_modulate(child)
+
+func item_visible_in_tree(item: TreeItem) -> bool:
+	while item:
+		if not item_is_visible(item):
+			return false
+		item = item.get_parent()
+	return true
 
 func _on_filter_text_changed(new_text: String) -> void:
 	filter_items(new_text)

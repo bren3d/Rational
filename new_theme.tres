@@ -1,3 +1,4 @@
 [gd_resource type="Theme" format=3 uid="uid://ch7j137vnauxi"]
 
 [resource]
+FoldableContainer/constants/h_separation = 2

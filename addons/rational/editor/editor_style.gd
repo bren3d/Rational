@@ -6,18 +6,17 @@ const NORMAL_COLOR := Color("#15181e")
 const FAILURE_COLOR := Color("#82010b")
 const RUNNING_COLOR := Color("#c29c06")
 
-var panel_normal: StyleBoxFlat
-var panel_success: StyleBoxFlat
-var panel_failure: StyleBoxFlat
-var panel_running: StyleBoxFlat
+static var panel_normal: StyleBoxFlat
+static var panel_success: StyleBoxFlat
+static var panel_failure: StyleBoxFlat
+static var panel_running: StyleBoxFlat
 
-var titlebar_normal: StyleBoxFlat
-var titlebar_success: StyleBoxFlat
-var titlebar_failure: StyleBoxFlat
-var titlebar_running: StyleBoxFlat
+static var titlebar_normal: StyleBoxFlat
+static var titlebar_success: StyleBoxFlat
+static var titlebar_failure: StyleBoxFlat
+static var titlebar_running: StyleBoxFlat
 
-
-func _init() -> void:
+static func _static_init() -> void:
 	var theme: Theme = EditorInterface.get_editor_theme()
 	titlebar_normal = theme.get_stylebox(&"titlebar", &"GraphNode").duplicate()
 
