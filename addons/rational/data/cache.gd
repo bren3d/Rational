@@ -109,8 +109,11 @@ func add_data(root_data: RootData) -> void:
 	
 	root_data_list.push_back(root_data)
 	
-	root_data.request_edit.connect(_on_data_request_edit, CONNECT_APPEND_SOURCE_OBJECT)
-	root_data.closed.connect(erase_data, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_DEFERRED)
+	if not root_data.request_edit.is_connected(_on_data_request_edit):
+		root_data.request_edit.connect(_on_data_request_edit, CONNECT_APPEND_SOURCE_OBJECT)
+	
+	if not root_data.closed.is_connected(erase_data):
+		root_data.closed.connect(erase_data, CONNECT_APPEND_SOURCE_OBJECT | CONNECT_DEFERRED)
 	
 	data_added.emit(root_data)
 
@@ -134,6 +137,7 @@ func erase_data(data: RootData) -> void:
 	
 	if data.has_unsaved_changes() and data.is_external():
 		data.save()
+	
 	
 	data_erased.emit(data)
 

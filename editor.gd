@@ -60,13 +60,9 @@ func _run() -> void:
 	const PATH2 := "res://TestScene/test_scene_character.tscn::Resource_q1v5c"
 	const SAVE_PATH: String = "res://bar.tres"
 	
-	#GraphState.connections = graph_edit.get_connection_list()
+	#graph_edit.cache = Util.get_cache()
+	selection.clear()
 	
-	print("\n")
-	for dict: Dictionary in GraphState.connections:
-		var id: int = dict.to_node.to_int()
-		if is_instance_id_valid(id):
-			print(instance_from_id(id))
 	#print(GraphState.connections)
 	#GraphState.connections = graph_edit.connections
 	#var bar: Composite = load(PATH2)

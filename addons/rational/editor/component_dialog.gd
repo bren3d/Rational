@@ -12,10 +12,6 @@ const TITLE_DEFAULT: String = "Create Rational Node"
 
 const ClassData := preload("../data/rational_class_data.gd")
 
-signal class_selected(_class: StringName)
-#signal root_created(root: RationalComponent)
-signal node_created(node: RationalComponent)
-
 @export var tree: Tree
 @export var description_label: RichTextLabel
 @export var line_edit: LineEdit
@@ -76,6 +72,7 @@ func add_class_item(_class: StringName, parent: TreeItem = null) -> void:
 	var item: TreeItem = tree.create_item(parent)
 	item.set_text(0, _class)
 	item.set_selectable(0, not class_data.class_is_abstract(_class))
+	item.set_metadata(0, class_data.class_get_script_path(_class))
 	if not class_data.class_is_abstract(_class):
 		item.set_icon(0, class_data.class_get_icon(_class))
 	
@@ -110,15 +107,11 @@ func _on_tree_item_selected() -> void:
 	get_ok_button().disabled = not is_instance_valid(item)
 
 
-func _on_confirmed() -> void:
-	var selected_class: StringName = get_selected_class()
-	if not selected_class:
-		return 
-	if active_callback:
-		active_callback.call(selected_class)
-	class_selected.emit(selected_class)
-	#create_node(item.get_text(0))
 
+
+func _on_confirmed() -> void:
+	if not active_callback: return
+	active_callback.call(get_selected_script_path())
 
 func _on_canceled() -> void:
 	pass
@@ -151,8 +144,8 @@ func item_apply_filter(item: TreeItem, filter_text: String) -> bool:
 	
 	return item.visible
 
-func get_selected_class() -> StringName:
-	return tree.get_selected().get_text(0) if tree and tree.get_selected() else &""
+func get_selected_script_path() -> StringName:
+	return tree.get_selected().get_metadata(0) if tree and tree.get_selected() else &""
 
 func _on_filter_changed(txt: String) -> void:
 	if not tree or not tree.get_root(): return

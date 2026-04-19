@@ -4,7 +4,7 @@ extends RefCounted
 const LATERAL_SIZE: float = 360.0
 const LEVEL_SIZE: float = 240.0
 
-var x: float
+var x: float = 0.0
 var mod: float = 0.0
 var level: int = 0
 
@@ -44,11 +44,16 @@ func get_size() -> Vector2:
 func calculate_tree(depth: int = 0) -> void:
 	init_node(depth)
 	init_lateral()
-	calculate_final_x(0.0)
+	calculate_final_x()
 
-func init_node(depth: int) -> void:
-	x = 0
-	mod = 0
+func calculate_relative() -> void:
+	init_node(level, x, mod)
+	init_lateral()
+	calculate_final_x()
+
+func init_node(depth: int, x: float = 0.0, mod: float = 0.0) -> void:
+	self.x = x
+	self.mod = mod
 	level = depth
 	for child: RefCounted in children:
 		child.init_node(depth + 1)
@@ -113,7 +118,7 @@ func center_siblings(from: int, to: int) -> void:
 		sibling.x += (x_delta * float(i + 1))
 		sibling.mod += (x_delta * float(i + 1))
 
-func calculate_final_x(accum: float) -> void:
+func calculate_final_x(accum: float = 0.0) -> void:
 	x += accum
 	accum += mod
 	for child: RefCounted in children:

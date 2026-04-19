@@ -1,7 +1,7 @@
 @tool
 extends RefCounted
 
-const DEBUG: bool = false
+const DEBUG: bool = true
 
 ## Emitted when requesting to select/focus GraphNode.
 signal request_show_in_editor(comp: RationalComponent)
@@ -168,7 +168,7 @@ func cut() -> void:
 
 
 func copy() -> void:
-	set_clipboard(selection.get_selected_components().duplicate())
+	set_clipboard(selection.get_selected_components())
 
 func duplicate() -> void:
 	if not get_edited_tree_root(): return
@@ -232,7 +232,7 @@ func filter_unselected(original: RationalComponent, comp: RationalComponent, sel
 		if original.get_child(i) in selected:
 			filter_unselected(original.get_child(i), comp.get_child(i), selected)
 		else:
-			comp.remove_index(i)
+			comp.remove_child(comp.get_child(i))
 	return comp
 
 func get_top_selected_filtered(duplicate_mode: Resource.DeepDuplicateMode = Resource.DEEP_DUPLICATE_INTERNAL) -> Array[RationalComponent]:
@@ -244,14 +244,25 @@ func get_top_selected_filtered(duplicate_mode: Resource.DeepDuplicateMode = Reso
 ## Components are not duplicated.
 func get_top_clipboard_components() -> Array[RationalComponent]:
 	var components: Array[RationalComponent] = get_clipboard().duplicate()
-	var i: int = components.size()
-	while 0 < i:
-		i -= 1
+	var top_comps: Array[RationalComponent]
+	for comp: RationalComponent in components:
+		var is_top_level: bool = true
 		for c: RationalComponent in components:
-			if not c.has_child(components[i], true): continue
-			components.remove_at(i)
+			if c == comp: continue
+			if not c.has_child(comp, true): continue
+			is_top_level = false
 			break
-	return components
+		if is_top_level:
+			top_comps.push_back(comp)
+		
+	#var i: int = components.size()
+	#while 0 < i:
+		#i -= 1
+		#for c: RationalComponent in components:
+			#if not c.has_child(components[i], true): continue
+			#components.remove_at(i)
+			#break
+	return top_comps
 
 
 ## Filters [param components] to remove those that are children of others in [param components].

@@ -10,8 +10,12 @@ const INVALID_POSITION: Vector2 = Vector2(-999999, -999999)
 const PORT_RADIUS: float = 7.0
 const RADIUS_SIZE_INCREASE: float = 5.0
 
+signal request_rename(comp: RationalComponent, new_name: String)
+signal transform_changed
+
+signal component_child_added(comp: RationalComponent)
+signal component_child_removed(comp: RationalComponent)
 signal component_children_changed
-signal component_property_edited(property: StringName, value: Variant, field: StringName, changing: bool)
 
 var component: RationalComponent: set = set_component
 
@@ -74,13 +78,12 @@ var current_index: int = 0:
 		current_index = val
 		queue_redraw()
 
-var parent: GraphNode: set = set_graph_parent
-var children: Array[GraphNode]: set = set_graph_children
+var arrange_queued: bool = false
 
 func _init(horizontal: bool = false) -> void:
 	self.horizontal = horizontal
 	positioner.item = self
-	custom_minimum_size = Vector2(50, 50) * EditorInterface.get_editor_scale()
+	custom_minimum_size = Vector2(64.0, 64.0) * EditorInterface.get_editor_scale()
 	
 	icon_rect = TextureRect.new()
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -129,6 +132,11 @@ func _init(horizontal: bool = false) -> void:
 	
 	resized.connect(_on_resized)
 	position_offset_changed.connect(_on_position_offset_changed)
+	
+	add_theme_color_override("close_color", Color.TRANSPARENT)
+	add_theme_icon_override("close", ImageTexture.new())
+	
+	line_edit.add_theme_font_override("font", Util.get_font(&"main", &"EditorFonts").duplicate())
 
 func _on_resized() -> void:
 	if arranged:
@@ -138,40 +146,21 @@ func _on_resized() -> void:
 func _on_position_offset_changed() -> void:
 	arranged = arranged_position != INVALID_POSITION and position_offset == arranged_position
 
+## Need to update positioner prior to calling.
+func queue_arrange() -> void:
+	if arrange_queued: return
+	arrange_queued = true
+	arrange.call_deferred()
+
+## Need to update positioner prior to calling.
 func arrange() -> void:
 	arranged_position = positioner.get_position()
 	position_offset = arranged_position
 	arranged = true
-	for child in children:
-		child.arrange()
-
-func set_graph_parent(val: GraphNode) -> void:
-	parent = val
-	positioner.parent = parent.positioner if parent else null
-
-func set_graph_children(val: Array[GraphNode]) -> void:
-	for child in children:
-		if not child in val: continue
-		child.parent = null
-		
-	children = val
+	for child: TreePositionComponent in positioner.children:
+		child.item.arrange()
 	
-	var positioner_children: Array[RefCounted]
-	for child in children:
-		child.parent = self
-		positioner_children.push_back(child.positioner)
-	
-	positioner.children = positioner_children
-
-func _ready() -> void:
-	
-	add_theme_color_override("close_color", Color.TRANSPARENT)
-	add_theme_icon_override("close", ImageTexture.new())
-	
-	var title_font: Font = Util.get_font(&"main", &"EditorFonts").duplicate()
-	line_edit.add_theme_font_override("font", title_font)
-	
-	line_edit.text = title_text
+	arrange_queued = false
 
 func is_inherited() -> bool:
 	return not root and component and not component.is_built_in()
@@ -180,29 +169,24 @@ func get_component_class() -> StringName:
 	return component.get_script().get_global_name() if component else &""
 
 func rename() -> void:
-	set_editable(true)
+	set_name_editable(true)
 
-func set_editable(editable: bool) -> void:
-	editable = editable and not is_inherited()
-	line_edit.selecting_enabled = editable
-	line_edit.editable = editable
-	line_edit.mouse_filter = MOUSE_FILTER_IGNORE * int(not editable)
-	line_edit.focus_mode = Control.FOCUS_ALL * int(editable)
-	if editable:
+func set_name_editable(val: bool) -> void:
+	val = val and not is_inherited()
+	line_edit.selecting_enabled = val
+	line_edit.editable = val
+	line_edit.mouse_filter = MOUSE_FILTER_IGNORE * int(not val)
+	line_edit.focus_mode = Control.FOCUS_ALL * int(val)
+	if val:
 		line_edit.edit()
 		line_edit.select_all()
 
-
-
-func set_component_name(new_name: String) -> void:
-	if not component or component.resource_name == new_name: return
-	component.resource_name = new_name
-
-
-func _on_line_edit_editing_toggled(is_editing: bool) -> void:
-	if not is_visible_in_tree() or is_editing: return
-	set_editable(false)
-	set_component_name(line_edit.text)
+func _on_line_edit_editing_toggled(toggled_on: bool) -> void:
+	if toggled_on: return
+	set_name_editable(toggled_on)
+	request_rename.emit(component, line_edit.text)
+	if title_text != line_edit.text:
+		title_text = component.resource_name
 	reset_size()
 
 
@@ -256,13 +240,17 @@ func update_display() -> void:
 	
 	name = str(component.get_instance_id())
 	icon_rect.tooltip_text = Util.comp_get_class(component) if component else ""
+	reset_size()
 
 
 func set_component(val: RationalComponent) -> void:
 	if component:
 		component.changed.disconnect(_on_component_changed)
 		component.script_changed.disconnect(_on_component_script_changed)
-		component.children_changed.disconnect(_on_component_children_changed)
+		if component is Composite:
+			component.child_added.disconnect(_on_component_child_added)
+			component.child_removed.disconnect(_on_component_child_removed)
+			component.children_changed.disconnect(_on_component_children_changed)
 	
 	component = val
 	update_display()
@@ -275,10 +263,19 @@ func set_component(val: RationalComponent) -> void:
 	if component:
 		component.changed.connect(_on_component_changed)
 		component.script_changed.connect(_on_component_script_changed, CONNECT_DEFERRED)
-		component.children_changed.connect(_on_component_children_changed)
+		if component is Composite:
+			component.child_added.connect(_on_component_child_added)
+			component.child_removed.connect(_on_component_child_removed)
+			component.children_changed.connect(_on_component_children_changed)
 
 func _on_component_changed() -> void:
 	update_display()
+
+func _on_component_child_added(comp: RationalComponent) -> void:
+	component_child_added.emit(comp)
+
+func _on_component_child_removed(comp: RationalComponent) -> void:
+	component_child_removed.emit(comp)
 
 func _on_component_children_changed() -> void:
 	component_children_changed.emit()
@@ -341,3 +338,12 @@ func set_stylebox_overrides(panel_stylebox: StyleBox, titlebar_stylebox: StyleBo
 	panels_tween.tween_property(cur_panel_stylebox, "border_color", panel_stylebox.border_color, 1.0)
 	panels_tween.tween_property(cur_titlebar_stylebox, "bg_color", panel_stylebox.bg_color, 1.0)
 	panels_tween.tween_property(cur_titlebar_stylebox, "border_color", panel_stylebox.border_color, 1.0)
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_ENTER_TREE:
+			set_notify_local_transform(true)
+		NOTIFICATION_EXIT_TREE:
+			set_notify_local_transform(false)
+		NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
+			transform_changed.emit()

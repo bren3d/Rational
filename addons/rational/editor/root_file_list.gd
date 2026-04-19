@@ -55,6 +55,7 @@ func build_list() -> void:
 	create_item()
 	for data: RootData in cache.get_data_list():
 		add_data(data)
+	
 
 func has_root(root: RationalComponent) -> bool:
 	return root_get_item(root) != null
@@ -108,9 +109,15 @@ func add_data(data: RootData) -> void:
 	var item: TreeItem = create_item()
 	item.set_metadata(0, data)
 	update_item(item)
+	
 	data.changed.connect(_on_data_changed.bind(data))
 	data.unsaved_changes_changed.connect(_on_unsaved_changes_changed.bind(data))
 	data.closed.connect(_on_data_closed.bind(data))
+	
+	if data == cache.get_edited_tree():
+		item.select(0)
+		ensure_cursor_is_visible()
+
 
 func add_root(root: RationalComponent, force_path: String = "") -> void:
 	if not root: return
@@ -137,6 +144,11 @@ func erase_data(data: RootData) -> void:
 func _on_data_closed(data: RootData) -> void:	
 	if not data: return
 	var item:= data_get_item(data)
+	
+	data.changed.disconnect(_on_data_changed)
+	data.unsaved_changes_changed.disconnect(_on_unsaved_changes_changed)
+	data.closed.disconnect(_on_data_closed)
+	
 	if item:
 		item.free()
 
@@ -168,9 +180,11 @@ func edit_tree(tree: RationalTree) -> void:
 	cache.edit_root(tree.root)
 
 func select_data(data: RootData) -> void:
-	if not data or get_selected() == data_get_item(data): return
+	if not data: return
+	add_data(data)
 	data_get_item(data).select(0)
 	ensure_cursor_is_visible()
+	
 
 func _on_item_selected() -> void:
 	var item: TreeItem = get_selected()
