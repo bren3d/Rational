@@ -166,6 +166,8 @@ static func get_shortcut(name: StringName) -> Shortcut:
 			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/copy_node")
 		&"paste":
 			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/paste_node")
+		&"paste_as_sibling":
+			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/paste_node_as_sibling")
 		&"duplicate":
 			return EditorInterface.get_editor_settings().get_shortcut("scene_tree/duplicate")
 		&"reparent":

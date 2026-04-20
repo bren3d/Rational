@@ -191,6 +191,10 @@ func save() -> void:
 	var root_data: Array[Dictionary]
 	for rd: RootData in get_data_list():
 		if rd.is_temp(): continue
+		
+		if rd.has_unsaved_changes():
+			rd.save()
+		
 		root_data.push_back(rd.serialize())
 	
 	var cfg: ConfigFile = ConfigFile.new()

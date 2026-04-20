@@ -55,39 +55,13 @@ func _run() -> void:
 	var root_file_tree: RootFileList = main.root_file_tree
 	var tree_display: TreeDisplay = main.tree_display
 	var graph_edit: GraphEditor = main.graph_edit
+	var test_root: Composite = load("uid://dbllgp7c366kf")
 	
 	const PATH := "res://TestScene/test_scene_character.tscn::Resource_4t32f"
 	const PATH2 := "res://TestScene/test_scene_character.tscn::Resource_q1v5c"
 	const SAVE_PATH: String = "res://bar.tres"
 	
-	#graph_edit.cache = Util.get_cache()
-	selection.clear()
 	
-	#print(GraphState.connections)
-	#GraphState.connections = graph_edit.connections
-	#var bar: Composite = load(PATH2)
-	#var id:= bar.get_instance_id()
-	#print(instance_from_id(id))
-	#print(bar.is_built_in())
-	#var is_cached: = ResourceLoader.has_cached(SAVE_PATH)
-	#print("Bar loaded: %s" % is_cached)
-	#if is_cached:
-		#return
-	#
-	#var bar: Sequence = load(SAVE_PATH)
-	#for sig in bar.get_signal_list():
-		#printt(sig.name)
-	#
-	#bar.add_user_signal("foo_changed")
-	##bar.set_meta(&"_visible", null)
-	#for sig in bar.get_signal_list():
-		#printt(sig.name)
-	#bar.set_meta(&"visible", true)
-	
-	#for meta: StringName in bar.get_meta_list():
-		#printt(meta, bar.get_meta(meta))
-	
-	#ResourceSaver.save(bar, SAVE_PATH)
 	
 
 func print_selection() -> void:

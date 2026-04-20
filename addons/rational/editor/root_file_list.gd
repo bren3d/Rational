@@ -132,7 +132,7 @@ func update_item(item: TreeItem) -> void:
 	item.set_tooltip_text(0, data_get_tooltip(data))
 
 func data_get_name(data: RootData) -> String:
-	return data.name + (" (*)" if data.unsaved_changes else "") 
+	return data.name + (" (*)" if data.has_unsaved_changes() else "") 
 
 func data_get_tooltip(data: RootData) -> String:
 	return "Type: %s\nPath: %s" % [Util.comp_get_class(data.root), data.path]

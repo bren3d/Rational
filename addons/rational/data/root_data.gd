@@ -24,7 +24,12 @@ var path: String: set = set_path, get = get_path
 
 var name: String: set = set_name
 
-var unsaved_changes: bool = false: set = set_unsaved_changes, get = has_unsaved_changes
+#var unsaved_changes: bool = false: set = set_unsaved_changes, get = has_unsaved_changes
+
+var saved_version: int = -1: set = set_saved_version
+#var edited_version: int = -1
+#var first_edited_version: int = -1
+#var laste_edited_version: int = -1
 
 func _init(_path: String = "", _root: RationalComponent = null) -> void:
 	# Must set path before root. 
@@ -34,6 +39,9 @@ func _init(_path: String = "", _root: RationalComponent = null) -> void:
 	
 	Engine.get_main_loop().process_frame.connect(load_path, CONNECT_ONE_SHOT | CONNECT_DEFERRED)
 
+
+func edit() -> void:
+	request_edit.emit()
 
 func is_root(_root: RationalComponent) -> bool:
 	return _root and ((path and _root.resource_path == path) or root == _root) 
@@ -58,7 +66,6 @@ func get_root_class() -> String:
 func rename(to_name: String) -> void:
 	if to_name == name: return
 	name = to_name
-	set_unsaved_changes(true)
 
 func get_root() -> RationalComponent:
 	return root
@@ -109,19 +116,6 @@ func set_name(val: String) -> void:
 			root.resource_name = name
 		changed.emit()
 
-func has_unsaved_changes() -> bool:
-	return unsaved_changes
-
-
-# NOTE: Child components are not updated immediately in inspector.
-func set_unsaved_changes(val: bool) -> void:
-	if unsaved_changes == val: return
-	unsaved_changes = val
-	EditorInterface.set_object_edited(root, not val)
-	if unsaved_changes:
-		mark_scene_unsaved()
-	unsaved_changes_changed.emit()
-
 func save_as(save_path: String) -> Error:
 	if not save_path:
 		return ERR_FILE_BAD_PATH
@@ -164,7 +158,7 @@ func save() -> Error:
 	
 	match err:
 		OK:
-			set_unsaved_changes(false)
+			update_saved_version_to_current()
 			data_saved.emit()
 			print("Saved: %s" % self)
 		ERR_BUG:
@@ -245,7 +239,6 @@ func load_path() -> void:
 
 
 func load_deferred() -> Error:
-	
 	# Use Cached Ref for built-ins to avoid ResourceLoader throwing errors 'Resource file not found' and 'Error loading resource' .
 	var check_callable: Callable = ResourceLoader.has_cached if is_builtin() else ResourceLoader.exists
 	var load_callable: Callable = ResourceLoader.get_cached_ref if is_builtin() else ResourceLoader.load.bind("", ResourceLoader.CACHE_MODE_REPLACE)
@@ -271,26 +264,45 @@ func mark_scene_unsaved() -> void:
 	if not is_builtin(): return
 	var scene_file:= get_scene_file()
 	assert(is_scene_open(), "Built-in %s active while scene is not." % self)
+	#root.get_local_scene()
 	
 	var current_scene: String = EditorInterface.get_edited_scene_root().scene_file_path
-	
 	EditorInterface.open_scene_from_path(scene_file)
 	EditorInterface.mark_scene_as_unsaved()
 	EditorInterface.open_scene_from_path.call_deferred(current_scene)
 
-func edit() -> void:
-	request_edit.emit()
+func is_saved() -> bool:
+	return saved_version == -1
+
+func has_unsaved_changes() -> bool:
+	return saved_version != -1
+
+# NOTE: Child components are not updated immediately in inspector.
+func set_saved_version(version: int) -> void:
+	saved_version = version
+	EditorInterface.set_object_edited(root, saved_version != -1)
+	print("Saved => %s" % is_saved())
+	unsaved_changes_changed.emit()
+
+## Call when making changes to root.
+func change_version(old: int, new: int) -> void:
+	if is_saved():
+		saved_version = old
+	elif new == saved_version:
+		saved_version = -1
+	#print("Change version %d => %d | Saved version: %d" % [old, new, saved_version])
+
+func update_saved_version_to_current() -> void:
+	set_saved_version(-1)
 
 func _on_root_changed() -> void:
 	name = root.resource_name
 	path = root.resource_path
 
 func _on_root_script_changed() -> void:
-	set_unsaved_changes(true)
 	changed.emit()
 
 func _on_tree_changed() -> void:
-	set_unsaved_changes(true)
 	tree_changed.emit()
 
 func is_loaded() -> bool:
@@ -314,6 +326,7 @@ func get_scene_file() -> String:
 
 ## Returns Resource ID in scene if root is built-in else returns [code]""[/code]
 func get_scene_id() -> String:
+	#root.resource_scene_unique_id
 	return get_path().get_slice("::", 1) if is_builtin() else ""
 
 func is_scene_open() -> bool:
