@@ -24,12 +24,8 @@ var path: String: set = set_path, get = get_path
 
 var name: String: set = set_name
 
-#var unsaved_changes: bool = false: set = set_unsaved_changes, get = has_unsaved_changes
-
+## Tracks if the tree is saved or not.
 var saved_version: int = -1: set = set_saved_version
-#var edited_version: int = -1
-#var first_edited_version: int = -1
-#var laste_edited_version: int = -1
 
 func _init(_path: String = "", _root: RationalComponent = null) -> void:
 	# Must set path before root. 

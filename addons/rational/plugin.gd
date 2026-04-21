@@ -73,10 +73,8 @@ func _exit_tree() -> void:
 	
 	Engine.unregister_singleton(&"Rational")
 
-
 func _handles(object: Object) -> bool:
 	return object is RationalTree and EditorInterface.get_inspector().get_edited_object() != object
-
 
 func _edit(object: Object) -> void:
 	if cache and object and editor:

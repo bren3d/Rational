@@ -6,6 +6,8 @@ const Util := preload("../util.gd")
 const RationalGraphNode := preload("graph_node.gd")
 const CreatePopup = preload("component_dialog.gd") 
 const Menu := preload("popup_menu.gd")
+
+const TreeDisplay := preload("tree_display.gd")
 const ActionHandle := preload("action_handle.gd")
 const Selection:= preload("selection.gd")
 const TreePositionComponent := preload("tree_positioner.gd")
@@ -19,7 +21,7 @@ const SIBLING_DISTANCE_MIN: float = 32.0
 const PARENT_DISTANCE_MIN: float = 240.0
 
 @export var popup: CreatePopup
-@export var tree_display: Tree
+@export var tree_display: TreeDisplay
 
 var layout_button: Button
 
@@ -70,7 +72,6 @@ var undo_redo: EditorUndoRedoManager
 var selected_node: RationalGraphNode
 
 var clipboard: Array[RationalComponent]
-#var node_map: Dictionary[RationalComponent, RationalGraphNode]
 
 func _ready() -> void:
 	selection = Util.get_selection()
@@ -116,9 +117,16 @@ func _ready() -> void:
 	menu.id_pressed.connect(_on_menu_id_pressed)
 	menu.popup_hide.connect(clear_selected_node, CONNECT_DEFERRED)
 	
-	undo_redo.get_history_undo_redo(EditorUndoRedoManager.GLOBAL_HISTORY).version_changed.connect(_on_version_changed, CONNECT_DEFERRED)
+	tree_display.menu_item_selected.connect(_on_tree_display_menu_selected)
+	tree_display.item_edited.connect(_on_tree_display_item_edited)
+	tree_display.request_reparent.connect(comp_reparent)
+	
+	#undo_redo.get_history_undo_redo(EditorUndoRedoManager.GLOBAL_HISTORY).version_changed.connect(_on_version_changed, CONNECT_DEFERRED)
 	
 	init_shortcuts()
+
+func _on_tree_display_item_edited() -> void:
+	rename_comp(tree_display.item_get_comp(tree_display.get_edited()), tree_display.item_get_name(tree_display.get_edited()))
 
 
 func _on_child_entered_tree(node: Node) -> void:
@@ -197,6 +205,12 @@ func get_menu_options(node: RationalGraphNode = null) -> int:
 
 func _on_menu_id_pressed(id: int) -> void:
 	match id:
+		Menu.ITEM_SHOW_IN_EDITOR:
+			select_and_center(get_selected_comp())
+		Menu.ITEM_MOVE_UP:
+			shift_selected(true)
+		Menu.ITEM_MOVE_DOWN:
+			shift_selected(false)
 		Menu.ITEM_ADD_CHILD:
 			add_child_component()
 		Menu.ITEM_INSTANTIATE_NODE:
@@ -230,6 +244,10 @@ func _on_menu_id_pressed(id: int) -> void:
 		Menu.ITEM_MOVE_NODE_HERE:
 			move_nodes_here(get_selected_nodes())
 
+func _on_tree_display_menu_selected(id: int, comp: RationalComponent) -> void:
+	selected_node = comp_get_graph_node(comp)
+	_on_menu_id_pressed(id)
+	clear_selected_node.call_deferred()
 
 #endregion Menu
 
@@ -258,11 +276,16 @@ func move_nodes_here(nodes: Array[RationalGraphNode]) -> void:
 	if not nodes: return
 	var offset_delta: Vector2 = local_to_offset(Vector2(menu.position) - get_screen_position()) - nodes_get_rect(nodes).get_center()
 	
-	if not create_action("Move Component(s) to Position"): return
+	
+	# Move all nodes first to prevent parent index issues based on the order of nodes moved.
 	for node: RationalGraphNode in nodes:
-		undo_redo.add_undo_method(self, &"comp_set_offset", node.component, node.position_offset)
-		undo_redo.add_do_method(self, &"comp_set_offset", node.component, node.position_offset + offset_delta)
-	commit()
+		node.position_offset += offset_delta
+	
+	const ACTION_NAME: String = "Move Component(s) to Position" 
+	for node: RationalGraphNode in nodes:
+		move_component_undo_redo(node.position_offset - offset_delta, node.position_offset, node, ACTION_NAME)
+	#move_component_undo_redo(node.position_offset, node.position_offset + offset_delta, node, ACTION_NAME, true)
+
 
 func select_and_center(comp: RationalComponent) -> void:
 	if not comp or not comp_has_node(comp): return
@@ -295,7 +318,8 @@ func add_child_from_path(path: String, parent: RationalComponent = null, offset:
 	commit(true)
 
 func instantiate_child() -> void:
-	action_handle.prompt_instantiate_child(get_selected_comp())
+	pass
+	#action_handle.prompt_instantiate_child(get_selected_comp())
 
 func add_child_component() -> void:
 	var selected: RationalComponent = get_selected_comp()
@@ -305,29 +329,30 @@ func add_child_component() -> void:
 func cut() -> void:
 	if is_dragging_connection: return
 	copy()
-	for comp: RationalComponent in get_selected_components():
-		delete_comp(comp, "Cut Component(s)")
+	delete("Cut Component(s)")
 
-func delete() -> void:
+func delete(action_name: String = "Remove Component(s)") -> void:
 	if is_dragging_connection: return
-	for comp: RationalComponent in get_selected_components():
-		delete_comp(comp)
-		
+	var components: Array[RationalComponent] = get_selected_components()
+	components.sort_custom(func(a: RationalComponent, b: RationalComponent) -> bool: return comp_get_index(a) < comp_get_index(b))
+	if not create_action(action_name):
+		return
+	for comp: RationalComponent in components:
+		delete_comp_undo_redo(comp, action_name)
+	commit()
 
 func comp_get_position_offset(comp: RationalComponent) -> Vector2:
 	return comp_get_graph_node(comp).position_offset if comp_has_node(comp) else Vector2.ZERO
 
 ## Creates UndoRedo action to completely remove [param comp] from parent and free node.
-func delete_comp(comp: RationalComponent, action_name: String = "Remove Component(s)" ) -> void:
+func delete_comp_undo_redo(comp: RationalComponent, action_name: String = "Remove Component(s)" ) -> void:
 	if not comp: return
 	var parent: RationalComponent = comp_get_parent(comp)
 	var children: Array[RationalComponent] = comp.get_children()
-	if not create_action(action_name):
-		return
-	undo_redo.add_undo_method(self, &"add_comp", comp)
+	
+	undo_redo.add_undo_method(self, &"add_comp", comp, parent, parent.get_child_index(comp) if parent else -1)
 	
 	if parent:
-		undo_redo.add_undo_method(parent, &"add_child", comp, parent.get_child_index(comp))
 		undo_redo.add_do_method(parent, &"remove_child", comp)
 	
 	undo_redo.add_do_method(self, &"comp_remove_node", comp)
@@ -338,12 +363,10 @@ func delete_comp(comp: RationalComponent, action_name: String = "Remove Componen
 		undo_redo.add_undo_method(selection, &"add_component", comp)
 		undo_redo.add_do_method(selection, &"remove_component", comp)
 	
-	commit(true)
+	
 
 func copy() -> void:
 	if is_dragging_connection: return
-	#clipboard.clear()
-	#clipboard.assign(get_selected_components())
 	action_handle.copy()
 
 func paste_to_parent(parent: RationalComponent, action_name: String = "") -> void:
@@ -386,6 +409,9 @@ func paste_here(ignore_menu: bool = false) -> void:
 	
 	var top_nodes: Array[RationalGraphNode]
 	for comp in action_handle.get_top_clipboard_components():
+		if not comp_has_node(comp): 
+			print("Comp doesn't have node: %s" % comp)
+			continue
 		top_nodes.push_back(comp_get_graph_node(comp))
 	
 	var target_center: Vector2 = local_to_offset((size/2.0) if ignore_menu else (Vector2(menu.position) - get_screen_position()))
@@ -493,7 +519,13 @@ func get_node_at_position(at_position: Vector2) -> RationalGraphNode:
 
 ## Returns the index based on [param node]'s [code]position_offset[/code].
 func node_get_index(node: RationalGraphNode) -> int:
+	if not node: return -1
 	return node_get_children_sorted(node_get_parent(node.name)).find(node) if node_is_parented(node.name) else -1
+
+func comp_get_index(comp: RationalComponent) -> int:
+	var parent:= comp_get_parent(comp)
+	return parent.get_child_index(comp) if parent else 0
+
 
 func node_get_children_sorted(parent: RationalGraphNode) -> Array[RationalGraphNode]:
 	var children : Array[RationalGraphNode] = node_get_children(parent)
@@ -501,7 +533,7 @@ func node_get_children_sorted(parent: RationalGraphNode) -> Array[RationalGraphN
 	return children
 
 func sort_position(node_a: RationalGraphNode, node_b: RationalGraphNode) -> bool:
-	return node_a.position_offset.y < node_b.position_offset.y if horizontal_layout else node_a.position_offset.x < node_b.position_offset.x
+	return node_a.position_offset[int(horizontal_layout)] < node_b.position_offset[int(horizontal_layout)]
 
 func show_quick_create_popup(at_position: Vector2) -> void:
 	if not active_root: return
@@ -529,8 +561,6 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 	if not from_port == to_port and from_port == 0:
 		printerr("Attempting to connect graph node port != 0.")
 		return
-	
-	#print("CONNECTION REQUEST CALLED")
 	
 	var current_parent: RationalGraphNode = node_get_parent(to_node)
 	var current_parent_comp: RationalComponent = current_parent.component if current_parent else null
@@ -747,6 +777,9 @@ func _on_component_child_removed(comp: RationalComponent, node: RationalGraphNod
 	node_disconnect(node.name, comp_name(comp))
 
 func _on_component_children_changed(node: RationalGraphNode) -> void:
+	#if node.component.get_child_count() > 2:
+		#node.component.print_tree_pretty()
+	return
 	node_verify_children_position(node)
 
 ## Only time this comes up is when Component order is changed outside of editor. => Is this even needed?
@@ -1095,12 +1128,18 @@ func _on_node_dragged(from: Vector2, to: Vector2, node: RationalGraphNode) -> vo
 		node.position_offset = from
 		return
 	
+	move_component_undo_redo(from, to , node)
+
+## Should be called after move in order to get parent/child index correctly.
+func move_component_undo_redo(from: Vector2, to: Vector2, node: RationalGraphNode, action_name: String = "Move Component(s)") -> void:
+	if not node: return
 	var parent: RationalGraphNode = node_get_parent(node.name)
 	var from_index: int = parent.component.get_child_index(node.component) if parent else -1
 	var to_index: int = node_get_index(node)
 	var root_changed: bool = parent and to_index != from_index
 	
-	create_action("Moved Component(s)", UndoRedo.MERGE_ALL, root_changed)
+	if not create_action("Move Component(s)", UndoRedo.MERGE_ALL, root_changed):
+		return
 	undo_redo.add_undo_method(self, &"comp_set_offset", node.component, from)
 	undo_redo.add_do_method(self, &"comp_set_offset", node.component, to)
 	if root_changed:
@@ -1109,6 +1148,33 @@ func _on_node_dragged(from: Vector2, to: Vector2, node: RationalGraphNode) -> vo
 		parent.component.move_child(node.component, to_index)
 	
 	commit(false)
+
+## Shift selected nodes up/down. Used for Menu.ITEM_MOVE_UP/Menu.ITEM_MOVE_DOWN
+func shift_selected(upward: bool) -> void:
+	var parents: Array[RationalComponent]
+	for comp: RationalComponent in get_selected_components():
+		var p: RationalComponent = comp_get_parent(comp)
+		if p and not p in parents:
+			parents.push_back(p)
+	
+	var idx_shift: int = (1 + -2 * int(upward))
+	
+	for parent: RationalComponent in parents:
+		if selection.is_selected(parent.get_child((parent.get_child_count() - 1) * int(not upward))):
+			continue
+		
+		for i: int in parent.get_child_count():
+			var idx: int = i if upward else parent.get_child_count() - 1 - i
+			if selection.is_selected(parent.get_child(idx)):
+				comp_move_child(parent, idx, idx + idx_shift)
+
+func comp_move_child(parent: RationalComponent, from_idx: int, to_idx: int) -> void:
+	if not parent or from_idx == to_idx: return
+	create_action("Move Component(s) in Parent" )
+	var child: RationalComponent = parent.get_child(from_idx)
+	undo_redo.add_undo_method(parent, "move_child", child, from_idx)
+	undo_redo.add_do_method(parent, "move_child", child, to_idx)
+	commit()
 
 #region UndoRedo
 
@@ -1126,12 +1192,16 @@ func create_action(action_name: String, merge_mode: UndoRedo.MergeMode = UndoRed
 	undo_redo.add_do_method(cache, &"set_edited_tree", active_root)
 	
 	if root_changed:
-		var version: int = get_version()
-		active_root.change_version(version, version + 1)
-		undo_redo.add_undo_method(active_root, &"change_version", version + 1, version)
-		undo_redo.add_do_method(active_root, &"change_version", version, version + 1)
+		update_root_version_undo_redo()
 	
 	return true
+
+func update_root_version_undo_redo() -> void:
+	if not active_root: return
+	var version: int = get_version()
+	active_root.change_version(version, version + 1)
+	undo_redo.add_undo_method(active_root, &"change_version", version + 1, version)
+	undo_redo.add_do_method(active_root, &"change_version", version, version + 1)
 
 func commit(execute: bool = true) -> void:
 	undo_redo.commit_action(execute)

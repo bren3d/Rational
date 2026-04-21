@@ -98,7 +98,6 @@ func _init(horizontal: bool = false) -> void:
 	#hide_button.icon = Util.get_icon(&"GuiVisibilityVisible", &"EditorIcons")
 	#hide_button.icon = Util.get_icon(&"GuiVisibilityHidden", &"EditorIcons")
 	
-	
 	line_edit = LineEdit.new()
 	line_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL

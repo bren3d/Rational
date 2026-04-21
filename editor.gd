@@ -61,8 +61,6 @@ func _run() -> void:
 	const PATH2 := "res://TestScene/test_scene_character.tscn::Resource_q1v5c"
 	const SAVE_PATH: String = "res://bar.tres"
 	
-	
-	
 
 func print_selection() -> void:
 	var data: Dictionary = Engine.get_singleton(&"Rational").selection._data

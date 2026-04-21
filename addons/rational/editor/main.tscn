@@ -157,7 +157,7 @@ size_flags_horizontal = 3
 placeholder_text = "Filter Components"
 right_icon = SubResource("DPITexture_hsmtw")
 
-[node name="TreeDisplay" type="Tree" parent="MainVBox/main/VSplitTreePanel/VBoxTreeDisplay" unique_id=158337772 node_paths=PackedStringArray("tree_filter_line_edit", "graph_edit")]
+[node name="TreeDisplay" type="Tree" parent="MainVBox/main/VSplitTreePanel/VBoxTreeDisplay" unique_id=158337772 node_paths=PackedStringArray("tree_filter_line_edit")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(128, 100)
 layout_mode = 2
@@ -172,9 +172,8 @@ allow_rmb_select = true
 select_mode = 2
 script = ExtResource("4_0erff")
 tree_filter_line_edit = NodePath("../TreeFilter")
-graph_edit = NodePath("../../../GraphEdit")
 
-[node name="GraphEdit" type="GraphEdit" parent="MainVBox/main" unique_id=962510277 node_paths=PackedStringArray("popup")]
+[node name="GraphEdit" type="GraphEdit" parent="MainVBox/main" unique_id=962510277 node_paths=PackedStringArray("popup", "tree_display")]
 custom_minimum_size = Vector2(300, 300)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -183,6 +182,7 @@ snapping_enabled = false
 show_arrange_button = false
 script = ExtResource("5_hsmtw")
 popup = NodePath("CreatePopup")
+tree_display = NodePath("../VSplitTreePanel/VBoxTreeDisplay/TreeDisplay")
 
 [node name="CollapsePanelContainer" type="PanelContainer" parent="MainVBox/main/GraphEdit" unique_id=291186898]
 layout_mode = 1
