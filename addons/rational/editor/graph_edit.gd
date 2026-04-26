@@ -1357,7 +1357,7 @@ func disconnect_hovered_port() -> bool:
 			comp_reparent(node.component, node_get_comp(con.from_node), null)
 		
 		if node.is_right_port_hovered and con.from_node == node.name:
-			comp_reparent(node_get_comp(con.from_node), null, node.component)
+			comp_reparent(node_get_comp(con.to_node), node.component, null)
 	
 	return true
 

@@ -53,4 +53,4 @@ func set_board_data(val: Dictionary) -> void:
 
 func set_global_data(val: Blackboard) -> void:
 	global_data = val
-	_data[SHARED] = global_data.board_data if board_data else {}
+	_data[SHARED] = global_data.board_data if global_data else {}

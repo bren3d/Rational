@@ -12,4 +12,4 @@ func _tick(delta: float, board: Blackboard, actor: Node) -> int:
 	for child: RationalComponent in children:
 		var status: int = child.tick(delta, board, actor)
 		if status != FAILURE: return status
-	return SUCCESS
+	return FAILURE
