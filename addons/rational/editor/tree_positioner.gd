@@ -114,7 +114,7 @@ func center_siblings(from: int, to: int) -> void:
 	var child_count: int = (to - from - 1)
 	var x_delta: float = (get_sibling(to).x - get_sibling(from).x) / float(child_count + 1)
 	for i: int in child_count:
-		var sibling:= get_sibling(to + i)
+		var sibling:= get_sibling(from + i + 1)
 		sibling.x += (x_delta * float(i + 1))
 		sibling.mod += (x_delta * float(i + 1))
 

@@ -24,10 +24,10 @@ var root_id: String:
 
 
 func _ready() -> void:
-	if not Engine.is_editor_hint(): return
-	set_process(false)
 	if not actor:
 		actor = get_parent()
+	if Engine.is_editor_hint():
+		set_process(false)
 
 
 func _process(delta: float) -> void:

@@ -14,6 +14,7 @@ const Cache:= preload("../data/cache.gd")
 @export var graph_edit: GraphEdit
 
 var file_dialog: EditorFileDialog
+var file_selected_callback: Callable
 
 var floating_window: Window
 
@@ -61,12 +62,15 @@ func save_as(data: RootData) -> void:
 			file_dialog.current_dir = data.path.get_base_dir()
 			file_dialog.current_file = data.path.get_file().get_slice(".", 0) + "_copy.tres"
 	
-	file_dialog.file_selected.connect(_on_file_selected.bind(data), CONNECT_ONE_SHOT)
+	_disconnect_file_selected_callback()
+	file_selected_callback = _on_file_selected.bind(data)
+	file_dialog.file_selected.connect(file_selected_callback, CONNECT_ONE_SHOT)
 	
 	file_dialog.popup_file_dialog()
 
 
 func _on_file_selected(path: String, data: RootData) -> void:
+	file_selected_callback = Callable()
 	if not path:
 		print("No Path Selected: %s" % path)
 		return
@@ -82,8 +86,13 @@ func _on_file_selected(path: String, data: RootData) -> void:
 
 
 func _on_file_dialog_canceled() -> void:
-	if file_dialog.file_selected.is_connected(_on_file_selected):
-		file_dialog.file_selected.disconnect(_on_file_selected)
+	_disconnect_file_selected_callback()
+
+
+func _disconnect_file_selected_callback() -> void:
+	if file_selected_callback.is_valid() and file_dialog.file_selected.is_connected(file_selected_callback):
+		file_dialog.file_selected.disconnect(file_selected_callback)
+	file_selected_callback = Callable()
 
 
 func edit(rational_object: Object) -> void:

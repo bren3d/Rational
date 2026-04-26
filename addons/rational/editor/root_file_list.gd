@@ -145,9 +145,17 @@ func _on_data_closed(data: RootData) -> void:
 	if not data: return
 	var item:= data_get_item(data)
 	
-	data.changed.disconnect(_on_data_changed)
-	data.unsaved_changes_changed.disconnect(_on_unsaved_changes_changed)
-	data.closed.disconnect(_on_data_closed)
+	var changed_callable: Callable = _on_data_changed.bind(data)
+	if data.changed.is_connected(changed_callable):
+		data.changed.disconnect(changed_callable)
+
+	var unsaved_callable: Callable = _on_unsaved_changes_changed.bind(data)
+	if data.unsaved_changes_changed.is_connected(unsaved_callable):
+		data.unsaved_changes_changed.disconnect(unsaved_callable)
+
+	var closed_callable: Callable = _on_data_closed.bind(data)
+	if data.closed.is_connected(closed_callable):
+		data.closed.disconnect(closed_callable)
 	
 	if item:
 		item.free()
@@ -228,7 +236,7 @@ func close_unselected() -> void:
 
 func close_below_selected() -> void:
 	if not get_selected(): return
-	close_items_except(get_root().get_chilren().slice(0, get_selected().get_index()))
+	close_items_except(get_root().get_children().slice(0, get_selected().get_index() + 1))
 
 func close_all() -> void:
 	close_items_except()
@@ -260,7 +268,7 @@ func init_popup() -> void:
 	Util.add_menu_item(popup, "Close", &"", &"close", close_selected)
 	Util.add_menu_item(popup, "Close Others", &"", &"close_others", close_unselected) 
 	Util.add_menu_item(popup, "Close Below", &"", &"close_below", close_below_selected) 
-	Util.add_menu_item(popup, "Close All", &"", &"close_all", close_below_selected) 
+	Util.add_menu_item(popup, "Close All", &"", &"close_all", close_all)
 	popup.add_separator("")
 	Util.add_menu_item(popup, "Show in FileSystem", &"", &"show_in_file_system", show_in_file_system)
 	Util.add_menu_item(popup, "Change Path...", &"", &"", prompt_change_selected_path)
@@ -272,7 +280,7 @@ func init_shortcuts() -> void:
 	shortcuts[Util.get_shortcut(&"close")] = close_selected
 	shortcuts[Util.get_shortcut(&"close_others")] = close_unselected
 	shortcuts[Util.get_shortcut(&"close_below")] = close_below_selected
-	shortcuts[Util.get_shortcut(&"close_all")] = close_below_selected
+	shortcuts[Util.get_shortcut(&"close_all")] = close_all
 	shortcuts.erase(null)
 
 func _gui_input(event: InputEvent) -> void:
